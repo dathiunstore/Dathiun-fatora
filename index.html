@@ -3,73 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام فواتير Dathiun Store</title>
+    <title>نظام فواتير Dathiun Store - Fire Edition</title>
     <style>
         :root {
-            --primary-bg: #0f0f0f;
-            --card-bg: #1a1a1a;
-            --accent-color: #00ffcc;
-            --text-color: #e0e0e0;
+            --primary-bg: #050505; /* أسود عميق */
+            --card-bg: #111111; /* رمادي غامق جداً */
+            --fire-orange: #ff6a00; /* برتقالي ناري */
+            --fire-yellow: #ffcc00; /* أصفر ناري */
+            --text-color: #ffffff;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--primary-bg);
+            background-image: radial-gradient(circle at top, #221100 0%, #050505 100%);
             color: var(--text-color);
             margin: 0; padding: 20px;
             display: flex; justify-content: center;
         }
         .container {
             background-color: var(--card-bg);
-            padding: 2rem; border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 2rem; border-radius: 20px;
+            box-shadow: 0 0 25px rgba(255, 106, 0, 0.2);
             width: 100%; max-width: 550px;
-            border: 1px solid #333;
+            border: 2px solid var(--fire-orange);
         }
-        input, button, select {
+        h2, h3 { color: var(--fire-yellow); text-shadow: 2px 2px 10px rgba(255, 204, 0, 0.4); }
+        input, select {
             width: 100%; padding: 12px;
             margin: 8px 0; border-radius: 8px;
-            border: 1px solid #444; background: #252525;
+            border: 1px solid #333; background: #1a1a1a;
             color: white; box-sizing: border-box;
+            outline: none; transition: 0.3s;
         }
+        input:focus { border-color: var(--fire-yellow); box-shadow: 0 0 8px rgba(255, 204, 0, 0.3); }
         button {
-            background: var(--accent-color);
-            color: black; font-weight: bold;
+            width: 100%; padding: 12px; margin: 8px 0;
+            border-radius: 8px; font-weight: bold;
             cursor: pointer; border: none; transition: 0.3s;
+            background: linear-gradient(45deg, var(--fire-orange), var(--fire-yellow));
+            color: #000; font-size: 1rem;
         }
-        button:hover { filter: brightness(1.2); }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 106, 0, 0.4); }
         .product-box {
-            background: #222; padding: 10px;
+            background: #1a1a1a; padding: 10px;
             margin: 10px 0; border-radius: 8px;
-            display: flex; gap: 8px; border: 1px solid #333;
+            display: flex; gap: 8px; border-left: 4px solid var(--fire-orange);
         }
         .quick-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .ship-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .item-btn { background: #333; color: #00ffcc; font-size: 0.85rem; border: 1px solid #444; }
+        .item-btn { 
+            background: #222; color: var(--fire-yellow); 
+            font-size: 0.85rem; border: 1px solid var(--fire-orange); 
+        }
+        .item-btn:hover { background: var(--fire-orange); color: #000; }
         #preview-area {
             background: #000; padding: 15px; margin-top: 20px;
             border-radius: 8px; white-space: pre-wrap;
-            font-size: 0.9rem; display: none; border: 1px dashed var(--accent-color);
+            font-size: 0.9rem; display: none; border: 1px solid var(--fire-yellow);
+            color: #ffcc00;
         }
-        .label-text { font-size: 0.9rem; color: #888; margin-top: 10px; display: block; }
+        .label-text { font-size: 0.9rem; color: var(--fire-orange); margin-top: 10px; display: block; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="login-area" style="text-align: center;">
-        <h2>Dathiun Store ☣️</h2>
+        <h2 style="font-size: 2rem;">Dathiun Store ☣️</h2>
+        <p style="color: #888;">نظام الفواتير الناري</p>
         <input type="password" id="pass-input" placeholder="الرمز السري">
-        <button onclick="checkPass()">دخول</button>
-        <p id="error-msg" style="color: red; display: none;">الرمز غير صحيح!</p>
+        <button onclick="checkPass()">دخول المنطقة المحظورة</button>
+        <p id="error-msg" style="color: #ff4444; display: none;">الرمز غير صحيح!</p>
     </div>
 
     <div id="main-content" style="display: none;">
-        <h3>إنشاء فاتورة</h3>
+        <h3>🔥 إنشاء فاتورة جديدة</h3>
         <input type="text" id="name" placeholder="اسم الزبون">
         <input type="text" id="phone" placeholder="رقم الهاتف">
         <input type="text" id="address" placeholder="العنوان">
 
-        <span class="label-text">إضافة سريعة للمواد:</span>
+        <span class="label-text">إضافة سريعة للأسلحة والمعدات:</span>
         <div class="quick-btns">
             <button class="item-btn" onclick="addSpecificItem('مسدس راكويم', 55000)">🔫 مسدس راكويم</button>
             <button class="item-btn" onclick="addSpecificItem('فاس ليون', 60000)">🪓 فاس ليون</button>
@@ -81,10 +94,10 @@
 
         <span class="label-text">سعر التوصيل:</span>
         <div class="ship-btns">
-            <button type="button" style="background:#444; color:white;" onclick="setShipping(5000)">٥,٠٠٠ د.ع</button>
-            <button type="button" style="background:#444; color:white;" onclick="setShipping(6000)">٦,٠٠٠ د.ع</button>
+            <button type="button" style="background:#333; color:white;" onclick="setShipping(5000)">٥,٠٠٠ د.ع</button>
+            <button type="button" style="background:#333; color:white;" onclick="setShipping(6000)">٦,٠٠٠ د.ع</button>
         </div>
-        <input type="number" id="shipping" placeholder="أو اكتب سعر توصيل آخر">
+        <input type="number" id="shipping" placeholder="سعر التوصيل">
 
         <span class="label-text">الخصم:</span>
         <div style="display: flex; gap: 10px;">
@@ -95,7 +108,7 @@
             </select>
         </div>
 
-        <button onclick="copyInvoice()" style="margin-top: 20px; background: #00ffcc;">نسخ الفاتورا</button>
+        <button onclick="copyInvoice()" style="margin-top: 20px; font-size: 1.2rem;">نسخ الفاتورا 🔥</button>
         <div id="preview-area"></div>
     </div>
 </div>
@@ -115,7 +128,7 @@
         div.innerHTML = `
             <input type="text" class="p-name" placeholder="المادة" style="flex: 2;">
             <input type="number" class="p-price" placeholder="السعر" style="flex: 1;">
-            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0;">X</button>
+            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0; margin:0;">X</button>
         `;
         container.appendChild(div);
     }
@@ -127,7 +140,7 @@
         div.innerHTML = `
             <input type="text" class="p-name" value="${name}" style="flex: 2;">
             <input type="number" class="p-price" value="${price}" style="flex: 1;">
-            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0;">X</button>
+            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0; margin:0;">X</button>
         `;
         container.appendChild(div);
     }
@@ -172,12 +185,12 @@
                     `نتمنى أن تنال أعمالنا إعجابكم 🧡`;
 
         navigator.clipboard.writeText(inv).then(() => {
-            alert("تم نسخ الفاتورا بنجاح!");
+            alert("تم نسخ الفاتورا بنجاح! 🔥");
             const prev = document.getElementById('preview-area');
             prev.innerText = inv; prev.style.display = 'block';
         });
     }
+    addItem();
 </script>
-
 </body>
 </html>
