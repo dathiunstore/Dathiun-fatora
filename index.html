@@ -1,0 +1,35 @@
+display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+            document.body.style.alignItems = 'flex-start';
+        } else {
+            document.getElementById('error-msg').style.display = 'block';
+        }
+    }
+    function addItem() {
+        const container = document.getElementById('items-list');
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'product-box';
+        itemDiv.innerHTML = <span class="remove-item" onclick="this.parentElement.remove()">×</span><input type="text" class="p-name" placeholder="اسم المادة"><input type="number" class="p-price" placeholder="السعر">;
+        container.appendChild(itemDiv);
+    }
+    function copyInvoice() {
+        const name = document.getElementById('name').value || "---";
+        const addr = document.getElementById('address').value || "---";
+        const phone = document.getElementById('phone').value || "---";
+        const discVal = parseInt(document.getElementById('discount').value);
+        const ship = parseInt(document.getElementById('shipping').value) || 0;
+        let itemsText = ""; let subtotal = 0; let count = 1;
+        document.querySelectorAll('.product-box').forEach(box => {
+            const pN = box.querySelector('.p-name').value;
+            const pP = parseInt(box.querySelector('.p-price').value) || 0;
+            if(pN) { itemsText += •${count} ${pN}   [${pP.toLocaleString()}] دينار\n\n; subtotal += pP; count++; }
+        });
+        const discAmt = subtotal * (discVal / 100);
+        const total = subtotal - discAmt + ship;
+        const inv = 📦فاتورة الطلب  - Dathiun Store\nمرحباً [${name}] ✨\nتم تجهيز تفاصيل طلبيتك بنجاح:\n\n📝 تفاصيل الطلب:\n${itemsText}• المجموع الفرعي: [${subtotal.toLocaleString()}] دينار\n• الخصم ([${discVal}%]): - [${discAmt.toLocaleString()}] دينار\n• التوصيل: [${ship.toLocaleString()}] دينار\n\n✅ المجموع الكلي: [${total.toLocaleString()}] دينار\n\n📍 معلومات الاستلام:\n• العنوان: [${addr}]\n• الهاتف: [${phone}]\n\nشكراً لدعمك لـ Dathiun Store ☣️\nنتمنى ان تنال اعمالنا اعجابكم🧡;
+        navigator.clipboard.writeText(inv).then(() => { alert("تم النسخ! ✅"); const prev = document.getElementById('preview-area'); prev.innerText = inv; prev.style.display = 'block'; });
+    }
+    addItem();
+</script>
+</body>
+</html>
