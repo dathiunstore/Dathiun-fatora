@@ -1,35 +1,184 @@
-display = 'none';
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام فواتير Dathiun Store</title>
+    <style>
+        :root {
+            --primary-bg: #0f0f0f;
+            --card-bg: #1a1a1a;
+            --accent-color: #00ffcc;
+            --text-color: #e0e0e0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #333;
+        }
+        #login-area, #main-content {
+            text-align: center;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #252525;
+            color: white;
+            box-sizing: border-box;
+        }
+        button {
+            background: var(--accent-color);
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: 0.3s;
+        }
+        button:hover {
+            filter: brightness(1.2);
+        }
+        .product-box {
+            background: #222;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: flex;
+            gap: 10px;
+        }
+        #preview-area {
+            background: #000;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            display: none;
+            border: 1px dashed var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- منطقة تسجيل الدخول -->
+    <div id="login-area">
+        <h2>نظام فواتير Dathiun Store ☣️</h2>
+        <p>أدخل رمز الدخول للمتابعة</p>
+        <input type="password" id="pass-input" placeholder="الرمز السري">
+        <button onclick="checkPass()">دخول</button>
+        <p id="error-msg" style="color: red; display: none;">الرمز غير صحيح!</p>
+    </div>
+
+    <!-- منطقة المحتوى الرئيسي -->
+    <div id="main-content" style="display: none;">
+        <h3>إنشاء فاتورة جديدة</h3>
+        <input type="text" id="name" placeholder="اسم الزبون">
+        <input type="text" id="phone" placeholder="رقم الهاتف">
+        <input type="text" id="address" placeholder="العنوان (أربيل/الموقع)">
+        
+        <div id="items-list">
+            <!-- المنتجات تضاف هنا -->
+        </div>
+        <button style="background: #444; color: white;" onclick="addItem()">+ إضافة مادة</button>
+        
+        <input type="number" id="discount" placeholder="الخصم (نسبة مئوية %)">
+        <input type="number" id="shipping" placeholder="أجرة التوصيل">
+        
+        <button onclick="copyInvoice()">نسخ الفاتورة واتساب ✅</button>
+        <div id="preview-area"></div>
+    </div>
+</div>
+
+<script>
+    function checkPass() {
+        const pass = document.getElementById('pass-input').value;
+        if(pass === '5445') {
+            document.getElementById('login-area').style.display = 'none';
             document.getElementById('main-content').style.display = 'block';
-            document.body.style.alignItems = 'flex-start';
         } else {
             document.getElementById('error-msg').style.display = 'block';
         }
     }
+
     function addItem() {
         const container = document.getElementById('items-list');
         const itemDiv = document.createElement('div');
         itemDiv.className = 'product-box';
-        itemDiv.innerHTML = <span class="remove-item" onclick="this.parentElement.remove()">×</span><input type="text" class="p-name" placeholder="اسم المادة"><input type="number" class="p-price" placeholder="السعر">;
+        itemDiv.innerHTML = `
+            <input type="text" class="p-name" placeholder="المادة" style="flex: 2;">
+            <input type="number" class="p-price" placeholder="السعر" style="flex: 1;">
+        `;
         container.appendChild(itemDiv);
     }
+
     function copyInvoice() {
         const name = document.getElementById('name').value || "---";
-        const addr = document.getElementById('address').value || "---";
         const phone = document.getElementById('phone').value || "---";
-        const discVal = parseInt(document.getElementById('discount').value);
+        const addr = document.getElementById('address').value || "---";
+        const discVal = parseInt(document.getElementById('discount').value) || 0;
         const ship = parseInt(document.getElementById('shipping').value) || 0;
-        let itemsText = ""; let subtotal = 0; let count = 1;
+
+        let itemsText = "";
+        let subtotal = 0;
+        let count = 1;
+
         document.querySelectorAll('.product-box').forEach(box => {
             const pN = box.querySelector('.p-name').value;
             const pP = parseInt(box.querySelector('.p-price').value) || 0;
-            if(pN) { itemsText += •${count} ${pN}   [${pP.toLocaleString()}] دينار\n\n; subtotal += pP; count++; }
+            if(pN) {
+                itemsText += `• ${count} | ${pN} [${pP.toLocaleString()} د.ع]\n`;
+                subtotal += pP;
+                count++;
+            }
         });
+
         const discAmt = subtotal * (discVal / 100);
         const total = subtotal - discAmt + ship;
-        const inv = 📦فاتورة الطلب  - Dathiun Store\nمرحباً [${name}] ✨\nتم تجهيز تفاصيل طلبيتك بنجاح:\n\n📝 تفاصيل الطلب:\n${itemsText}• المجموع الفرعي: [${subtotal.toLocaleString()}] دينار\n• الخصم ([${discVal}%]): - [${discAmt.toLocaleString()}] دينار\n• التوصيل: [${ship.toLocaleString()}] دينار\n\n✅ المجموع الكلي: [${total.toLocaleString()}] دينار\n\n📍 معلومات الاستلام:\n• العنوان: [${addr}]\n• الهاتف: [${phone}]\n\nشكراً لدعمك لـ Dathiun Store ☣️\nنتمنى ان تنال اعمالنا اعجابكم🧡;
-        navigator.clipboard.writeText(inv).then(() => { alert("تم النسخ! ✅"); const prev = document.getElementById('preview-area'); prev.innerText = inv; prev.style.display = 'block'; });
+
+        const inv = `📦 فاتورة الطلب - Dathiun Store\n` +
+                    `مرحباً ${name} ✨\n` +
+                    `تم تجهيز طلبك بنجاح ✅\n\n` +
+                    `📝 تفاصيل الطلب:\n${itemsText}\n` +
+                    `--------------------------\n` +
+                    `💰 المجموع الفرعي: ${subtotal.toLocaleString()} د.ع\n` +
+                    `📉 الخصم (${discVal}%): -${discAmt.toLocaleString()} د.ع\n` +
+                    `🚚 التوصيل: ${ship.toLocaleString()} د.ع\n` +
+                    `--------------------------\n` +
+                    `💵 المجموع الكلي: ${total.toLocaleString()} د.ع\n\n` +
+                    `📍 معلومات الاستلام:\n` +
+                    `• العنوان: ${addr}\n` +
+                    `• الهاتف: ${phone}\n\n` +
+                    `شكراً لدعمك لـ Dathiun Store ☣️\n` +
+                    `نتمنى أن تنال أعمالنا إعجابكم 🧡`;
+
+        navigator.clipboard.writeText(inv).then(() => {
+            alert("تم نسخ الفاتورة! يمكنك لصقها الآن في واتساب ✅");
+            const prev = document.getElementById('preview-area');
+            prev.innerText = inv;
+            prev.style.display = 'block';
+        });
     }
+
+    // إضافة مادة أولى تلقائياً
     addItem();
 </script>
+
 </body>
 </html>
