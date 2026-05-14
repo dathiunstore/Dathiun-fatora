@@ -15,141 +15,144 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--primary-bg);
             color: var(--text-color);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center;
         }
         .container {
             background-color: var(--card-bg);
-            padding: 2rem;
-            border-radius: 15px;
+            padding: 2rem; border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: 90%;
-            max-width: 500px;
+            width: 100%; max-width: 550px;
             border: 1px solid #333;
         }
-        #login-area, #main-content {
-            text-align: center;
-        }
-        input, button {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border: 1px solid #444;
-            background: #252525;
-            color: white;
-            box-sizing: border-box;
+        input, button, select {
+            width: 100%; padding: 12px;
+            margin: 8px 0; border-radius: 8px;
+            border: 1px solid #444; background: #252525;
+            color: white; box-sizing: border-box;
         }
         button {
             background: var(--accent-color);
-            color: black;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            transition: 0.3s;
+            color: black; font-weight: bold;
+            cursor: pointer; border: none; transition: 0.3s;
         }
-        button:hover {
-            filter: brightness(1.2);
-        }
+        button:hover { filter: brightness(1.2); }
         .product-box {
-            background: #222;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            display: flex;
-            gap: 10px;
+            background: #222; padding: 10px;
+            margin: 10px 0; border-radius: 8px;
+            display: flex; gap: 8px; border: 1px solid #333;
         }
+        .quick-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .ship-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .item-btn { background: #333; color: #00ffcc; font-size: 0.85rem; border: 1px solid #444; }
         #preview-area {
-            background: #000;
-            padding: 15px;
-            margin-top: 20px;
-            border-radius: 8px;
-            white-space: pre-wrap;
-            font-size: 0.9rem;
-            display: none;
-            border: 1px dashed var(--accent-color);
+            background: #000; padding: 15px; margin-top: 20px;
+            border-radius: 8px; white-space: pre-wrap;
+            font-size: 0.9rem; display: none; border: 1px dashed var(--accent-color);
         }
+        .label-text { font-size: 0.9rem; color: #888; margin-top: 10px; display: block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- منطقة تسجيل الدخول -->
-    <div id="login-area">
-        <h2>نظام فواتير Dathiun Store ☣️</h2>
-        <p>أدخل رمز الدخول للمتابعة</p>
+    <div id="login-area" style="text-align: center;">
+        <h2>Dathiun Store ☣️</h2>
         <input type="password" id="pass-input" placeholder="الرمز السري">
         <button onclick="checkPass()">دخول</button>
         <p id="error-msg" style="color: red; display: none;">الرمز غير صحيح!</p>
     </div>
 
-    <!-- منطقة المحتوى الرئيسي -->
     <div id="main-content" style="display: none;">
-        <h3>إنشاء فاتورة جديدة</h3>
+        <h3>إنشاء فاتورة</h3>
         <input type="text" id="name" placeholder="اسم الزبون">
         <input type="text" id="phone" placeholder="رقم الهاتف">
-        <input type="text" id="address" placeholder="العنوان (أربيل/الموقع)">
-        
-        <div id="items-list">
-            <!-- المنتجات تضاف هنا -->
+        <input type="text" id="address" placeholder="العنوان">
+
+        <span class="label-text">إضافة سريعة للمواد:</span>
+        <div class="quick-btns">
+            <button class="item-btn" onclick="addSpecificItem('مسدس راكويم', 55000)">🔫 مسدس راكويم</button>
+            <button class="item-btn" onclick="addSpecificItem('فاس ليون', 60000)">🪓 فاس ليون</button>
+            <button class="item-btn" onclick="addSpecificItem('ميداليات ٣', 10000)">🏅 ميداليات ٣</button>
+            <button class="item-btn" onclick="addItem()">+ مادة مخصصة</button>
         </div>
-        <button style="background: #444; color: white;" onclick="addItem()">+ إضافة مادة</button>
-        
-        <input type="number" id="discount" placeholder="الخصم (نسبة مئوية %)">
-        <input type="number" id="shipping" placeholder="أجرة التوصيل">
-        
-        <button onclick="copyInvoice()">نسخ الفاتورة واتساب ✅</button>
+
+        <div id="items-list"></div>
+
+        <span class="label-text">سعر التوصيل:</span>
+        <div class="ship-btns">
+            <button type="button" style="background:#444; color:white;" onclick="setShipping(5000)">٥,٠٠٠ د.ع</button>
+            <button type="button" style="background:#444; color:white;" onclick="setShipping(6000)">٦,٠٠٠ د.ع</button>
+        </div>
+        <input type="number" id="shipping" placeholder="أو اكتب سعر توصيل آخر">
+
+        <span class="label-text">الخصم:</span>
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="discount-val" placeholder="قيمة الخصم" style="flex: 2;">
+            <select id="discount-type" style="flex: 1;">
+                <option value="amount">دينار</option>
+                <option value="percent">% نسبة</option>
+            </select>
+        </div>
+
+        <button onclick="copyInvoice()" style="margin-top: 20px; background: #00ffcc;">نسخ الفاتورا</button>
         <div id="preview-area"></div>
     </div>
 </div>
 
 <script>
     function checkPass() {
-        const pass = document.getElementById('pass-input').value;
-        if(pass === '5445') {
+        if(document.getElementById('pass-input').value === '5445') {
             document.getElementById('login-area').style.display = 'none';
             document.getElementById('main-content').style.display = 'block';
-        } else {
-            document.getElementById('error-msg').style.display = 'block';
-        }
+        } else { document.getElementById('error-msg').style.display = 'block'; }
     }
 
     function addItem() {
         const container = document.getElementById('items-list');
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'product-box';
-        itemDiv.innerHTML = `
+        const div = document.createElement('div');
+        div.className = 'product-box';
+        div.innerHTML = `
             <input type="text" class="p-name" placeholder="المادة" style="flex: 2;">
             <input type="number" class="p-price" placeholder="السعر" style="flex: 1;">
+            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0;">X</button>
         `;
-        container.appendChild(itemDiv);
+        container.appendChild(div);
     }
+
+    function addSpecificItem(name, price) {
+        const container = document.getElementById('items-list');
+        const div = document.createElement('div');
+        div.className = 'product-box';
+        div.innerHTML = `
+            <input type="text" class="p-name" value="${name}" style="flex: 2;">
+            <input type="number" class="p-price" value="${price}" style="flex: 1;">
+            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0;">X</button>
+        `;
+        container.appendChild(div);
+    }
+
+    function setShipping(val) { document.getElementById('shipping').value = val; }
 
     function copyInvoice() {
         const name = document.getElementById('name').value || "---";
         const phone = document.getElementById('phone').value || "---";
         const addr = document.getElementById('address').value || "---";
-        const discVal = parseInt(document.getElementById('discount').value) || 0;
         const ship = parseInt(document.getElementById('shipping').value) || 0;
+        const discInput = parseInt(document.getElementById('discount-val').value) || 0;
+        const discType = document.getElementById('discount-type').value;
 
-        let itemsText = "";
-        let subtotal = 0;
-        let count = 1;
-
+        let itemsText = ""; let subtotal = 0; let count = 1;
         document.querySelectorAll('.product-box').forEach(box => {
             const pN = box.querySelector('.p-name').value;
             const pP = parseInt(box.querySelector('.p-price').value) || 0;
             if(pN) {
                 itemsText += `• ${count} | ${pN} [${pP.toLocaleString()} د.ع]\n`;
-                subtotal += pP;
-                count++;
+                subtotal += pP; count++;
             }
         });
 
-        const discAmt = subtotal * (discVal / 100);
+        let discAmt = (discType === 'percent') ? (subtotal * (discInput / 100)) : discInput;
         const total = subtotal - discAmt + ship;
 
         const inv = `📦 فاتورة الطلب - Dathiun Store\n` +
@@ -158,7 +161,7 @@
                     `📝 تفاصيل الطلب:\n${itemsText}\n` +
                     `--------------------------\n` +
                     `💰 المجموع الفرعي: ${subtotal.toLocaleString()} د.ع\n` +
-                    `📉 الخصم (${discVal}%): -${discAmt.toLocaleString()} د.ع\n` +
+                    `📉 الخصم: -${discAmt.toLocaleString()} د.ع\n` +
                     `🚚 التوصيل: ${ship.toLocaleString()} د.ع\n` +
                     `--------------------------\n` +
                     `💵 المجموع الكلي: ${total.toLocaleString()} د.ع\n\n` +
@@ -169,15 +172,11 @@
                     `نتمنى أن تنال أعمالنا إعجابكم 🧡`;
 
         navigator.clipboard.writeText(inv).then(() => {
-            alert("تم نسخ الفاتورة! يمكنك لصقها الآن في واتساب ✅");
+            alert("تم نسخ الفاتورا بنجاح!");
             const prev = document.getElementById('preview-area');
-            prev.innerText = inv;
-            prev.style.display = 'block';
+            prev.innerText = inv; prev.style.display = 'block';
         });
     }
-
-    // إضافة مادة أولى تلقائياً
-    addItem();
 </script>
 
 </body>
