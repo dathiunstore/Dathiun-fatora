@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
     <title>نظام فواتير Dathiun Store - Fire Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
             --primary-bg: #050505;
@@ -29,13 +29,16 @@
             border: 2px solid var(--fire-orange);
         }
         h2, h3 { color: var(--fire-yellow); text-shadow: 2px 2px 10px rgba(255, 204, 0, 0.4); }
+        
         input, select {
             width: 100%; padding: 12px;
             margin: 8px 0; border-radius: 8px;
             border: 1px solid #333; background: #1a1a1a;
             color: white; box-sizing: border-box;
             outline: none; transition: 0.3s;
+            font-size: 16px; 
         }
+        
         input:focus { border-color: var(--fire-yellow); box-shadow: 0 0 8px rgba(255, 204, 0, 0.3); }
         button {
             width: 100%; padding: 12px; margin: 8px 0;
@@ -56,13 +59,36 @@
             background: #222; color: var(--fire-yellow); 
             font-size: 0.85rem; border: 1px solid var(--fire-orange); 
         }
-        #preview-area {
-            background: #000; padding: 15px; margin-top: 20px;
-            border-radius: 8px; white-space: pre-wrap;
-            font-size: 0.9rem; display: none; border: 1px solid var(--fire-yellow);
-            color: #ffcc00; text-align: left; direction: ltr;
+
+        /* --- ستايل بطاقة كرت الفاتورة الناري (الذي سيتحول لصورة) --- */
+        #invoice-card-wrapper {
+            display: none; /* مخفي في البداية */
+            margin-top: 20px;
         }
-        .label-text { font-size: 0.9rem; color: var(--fire-orange); margin-top: 10px; display: block; font-weight: bold; }
+        .invoice-card {
+            background-color: #0d0d0d;
+            border: 3px solid var(--fire-orange);
+            border-radius: 15px;
+            padding: 25px;
+            color: #fff;
+            background-image: linear-gradient(135deg, #140b02 0%, #0d0d0d 100%);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .card-header { text-align: center; border-bottom: 2px dashed #333; padding-bottom: 15px; margin-bottom: 15px; }
+        .card-header h1 { color: var(--fire-yellow); margin: 0; font-size: 1.8rem; text-shadow: 0 0 10px rgba(255,106,0,0.5); }
+        .card-header p { color: #aaa; margin: 5px 0 0 0; font-size: 0.9rem; }
+        .card-info { font-size: 0.95rem; margin-bottom: 20px; line-height: 1.6; }
+        .card-info strong { color: var(--fire-orange); }
+        .card-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .card-table th { border-bottom: 2px solid var(--fire-orange); text-align: right; padding: 8px; color: var(--fire-yellow); }
+        .card-table td { padding: 10px 8px; border-bottom: 1px solid #222; }
+        .card-totals { border-top: 2px dashed #333; padding-top: 15px; font-size: 1rem; }
+        .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: #ccc; }
+        .total-row.grand-total { color: var(--fire-yellow); font-size: 1.3rem; font-weight: bold; border-top: 1px solid var(--fire-orange); padding-top: 10px; }
+        .card-footer { text-align: center; margin-top: 25px; font-size: 0.9rem; color: var(--fire-orange); font-weight: bold; }
+        
+        .action-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -70,9 +96,9 @@
 <div class="container">
     <div id="login-area" style="text-align: center;">
         <h2 style="font-size: 2rem;">Dathiun Store ☣️</h2>
-        <p style="color: #888;">نظام الفواتير لـ داثيون ستور</p>
+        <p style="color: #888;">نظام الفواتير الناري</p>
         <input type="text" id="pass-input" placeholder="الرمز السري">
-        <button onclick="checkPass()">🔥دخول🔥</button>
+        <button onclick="checkPass()">دخول المنطقة المحظورة</button>
         <p id="error-msg" style="color: #ff4444; display: none;">الرمز غير صحيح!</p>
     </div>
 
@@ -94,8 +120,8 @@
 
         <span class="label-text">سعر التوصيل:</span>
         <div class="ship-btns">
-            <button type="button" style="background:#333; color:white;" onclick="setShipping(5000)">5000</button>
-            <button type="button" style="background:#333; color:white;" onclick="setShipping(6000)">6000</button>
+            <button type="button" style="background:#333; color:white;" onclick="setShipping(5000)">٥,٠٠٠</button>
+            <button type="button" style="background:#333; color:white;" onclick="setShipping(6000)">٦,٠٠٠</button>
         </div>
         <input type="text" id="shipping" placeholder="سعر التوصيل">
 
@@ -108,13 +134,51 @@
             </select>
         </div>
 
-        <button onclick="copyInvoice()" style="margin-top: 20px; font-size: 1.2rem;">نسخ الفاتورا 🔥</button>
-        <div id="preview-area"></div>
+        <button onclick="generateInvoice()" style="margin-top: 20px; font-size: 1.2rem;">توليد الفاتورة النارية 🔥</button>
+
+        <div id="invoice-card-wrapper">
+            <div class="invoice-card" id="invoice-target">
+                <div class="card-header">
+                    <h1>Dathiun Store ☣️</h1>
+                    <p>قائمة طلبات الزبون الإبداعية</p>
+                </div>
+                <div class="card-info">
+                    <div><strong>الزبون:</strong> <span id="lbl-name"></span></div>
+                    <div><strong>الهاتف:</strong> <span id="lbl-phone"></span></div>
+                    <div><strong>العنوان:</strong> <span id="lbl-address"></span></div>
+                </div>
+                <table class="card-table">
+                    <thead>
+                        <tr>
+                            <th>الـمـادة</th>
+                            <th style="text-align: left;">السعر</th>
+                        </tr>
+                    </thead>
+                    <tbody id="card-items-body">
+                        </tbody>
+                </table>
+                <div class="card-totals">
+                    <div class="total-row"><span>المجموع الفرعي:</span><span id="lbl-subtotal"></span></div>
+                    <div class="total-row"><span>الخصم:</span><span id="lbl-discount"></span></div>
+                    <div class="total-row"><span>أجور التوصيل:</span><span id="lbl-shipping"></span></div>
+                    <div class="total-row grand-total"><span>المجموع الكلي:</span><span id="lbl-total"></span></div>
+                </div>
+                <div class="card-footer">
+                    شكراً لدعمك لـ Dathiun Store 🧡
+                </div>
+            </div>
+
+            <div class="action-btns">
+                <button onclick="copyTextInvoice()" style="background: #222; color: #fff; border: 1px solid var(--fire-orange);">نسخ النص 📋</button>
+                <button onclick="downloadInvoiceImage()" style="background: linear-gradient(45deg, #ff6a00, #ffcc00); color: #000;">تحميل كصورة 🖼️</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    // وظيفة تحويل الأرقام العربية إلى إنجليزية
+    let generatedTextInvoice = ""; // متغير لحفظ النص الخام للنسخ التقليدي
+
     function fixNumbers(str) {
         if (typeof str !== 'string') return str;
         return str.replace(/[٠-٩]/g, function(d) {
@@ -156,7 +220,8 @@
 
     function setShipping(val) { document.getElementById('shipping').value = val; }
 
-    function copyInvoice() {
+    // دالة بناء الفاتورة وعرضها داخل الكرت الجمالي
+    function generateInvoice() {
         const name = document.getElementById('name').value || "---";
         const phone = fixNumbers(document.getElementById('phone').value) || "---";
         const addr = document.getElementById('address').value || "---";
@@ -164,20 +229,41 @@
         const discInput = parseInt(fixNumbers(document.getElementById('discount-val').value)) || 0;
         const discType = document.getElementById('discount-type').value;
 
+        // تحديث معلومات الكرت المرئي الأساسية
+        document.getElementById('lbl-name').innerText = name;
+        document.getElementById('lbl-phone').innerText = phone;
+        document.getElementById('lbl-address').innerText = addr;
+
         let itemsText = ""; let subtotal = 0; let count = 1;
+        const tableBody = document.getElementById('card-items-body');
+        tableBody.innerHTML = ""; // تصفير الجدول أولاً
+
         document.querySelectorAll('.product-box').forEach(box => {
             const pN = box.querySelector('.p-name').value;
             const pP = parseInt(fixNumbers(box.querySelector('.p-price').value)) || 0;
             if(pN) {
+                // 1. بناء النص للنستخ التقليدي
                 itemsText += `• ${count} | ${pN} [${pP.toLocaleString()} د.ع]\n`;
                 subtotal += pP; count++;
+
+                // 2. بناء الأسطر داخل كرت الصورة الجمالي
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>• ${pN}</td><td style="text-align: left;">${pP.toLocaleString()} د.ع</td>`;
+                tableBody.appendChild(tr);
             }
         });
 
         let discAmt = (discType === 'percent') ? (subtotal * (discInput / 100)) : discInput;
         const total = subtotal - discAmt + ship;
 
-        const inv = `📦 فاتورة الطلب - Dathiun Store\n` +
+        // تحديث قيم الحسابات بالكرت المرئي
+        document.getElementById('lbl-subtotal').innerText = `${subtotal.toLocaleString()} د.ع`;
+        document.getElementById('lbl-discount').innerText = `-${discAmt.toLocaleString()} د.ع`;
+        document.getElementById('lbl-shipping').innerText = `${ship.toLocaleString()} د.ع`;
+        document.getElementById('lbl-total').innerText = `${total.toLocaleString()} د.ع`;
+
+        // حفظ النص الخام احتياطاً لو أردت النسخ النصي العادي
+        generatedTextInvoice = `📦 فاتورة الطلب - Dathiun Store\n` +
                     `مرحباً ${name} ✨\n` +
                     `تم تجهيز طلبك بنجاح ✅\n\n` +
                     `📝 تفاصيل الطلب:\n${itemsText}\n` +
@@ -193,12 +279,39 @@
                     `شكراً لدعمك لـ Dathiun Store ☣️\n` +
                     `نتمنى أن تنال أعمالنا إعجابكم 🧡`;
 
-        navigator.clipboard.writeText(inv).then(() => {
-            alert("تم نسخ الفاتورا بنجاح! 🔥");
-            const prev = document.getElementById('preview-area');
-            prev.innerText = inv; prev.style.display = 'block';
+        // إظهار منطقة الفاتورة الجاهزة بالأسفل
+        document.getElementById('invoice-card-wrapper').style.display = 'block';
+        window.scrollTo({ top: document.getElementById('invoice-card-wrapper').offsetTop, behavior: 'smooth' });
+    }
+
+    // وظيفة نسخ النص العادي
+    function copyTextInvoice() {
+        if(!generatedTextInvoice) return;
+        navigator.clipboard.writeText(generatedTextInvoice).then(() => {
+            alert("تم نسخ النص بنجاح! 📋");
         });
     }
+
+    // الوظيفة الخرافية: تحويل كرت الـ HTML إلى صورة حقيقية وتحميلها بجهازك
+    function downloadInvoiceImage() {
+        const element = document.getElementById('invoice-target');
+        
+        // استخدام مكتبة html2canvas لالتقاط الصندوق بدقة عالية ومطابقة لستايلك الناري
+        html2canvas(element, {
+            backgroundColor: '#0d0d0d',
+            scale: 2, // لرفع دقة وجودة الصورة المنتجة
+            logging: false,
+            useCORS: true
+        }).then(canvas => {
+            const image = canvas.toDataURL("image/png");
+            const link = document.createElement('a');
+            const name = document.getElementById('name').value || "زبون";
+            link.download = `فاتورة_Dathiun_${name}.png`;
+            link.href = image;
+            link.click();
+        });
+    }
+
     addItem();
 </script>
 </body>
