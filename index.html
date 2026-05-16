@@ -117,7 +117,7 @@
         
         <select id="duration">
             <option value="">حدد مدة العمل (اختياري)</option>
-            </select>
+        </select>
 
         <span class="label-text">إضافة سريعة:</span>
         <div class="quick-btns">
@@ -193,7 +193,7 @@
     let generatedTextInvoice = ""; 
     let rawPhoneNumber = "";
 
-    // توليد خيارات القائمة المنسدلة من 1 إلى 30 تلقائياً فور تحميل الصفحة
+    // توليد خيارات القائمة المنسدلة من 1 إلى 30 تلقائياً
     const durationSelect = document.getElementById('duration');
     for (let i = 1; i <= 30; i++) {
         const option = document.createElement('option');
@@ -253,7 +253,6 @@
         const discInput = parseInt(fixNumbers(document.getElementById('discount-val').value)) || 0;
         const discType = document.getElementById('discount-type').value;
 
-        // صياغة جملة الأيام تلقائياً إذا تم الاختيار
         let formattedDuration = durationValue ? `${durationValue} أيام كحد أقصى ويكون طلبك جاهز` : "";
 
         document.getElementById('lbl-name').innerText = name;
@@ -339,28 +338,35 @@
         });
     }
 
+    // الدالة المحدثة والمصلحة تماماً باستخدام الصيغة المستقرة والموثوقة wa.me
     function sendToWhatsApp() {
         if(!generatedTextInvoice) {
             alert("يرجى توليد الفاتورة أولاً!");
             return;
         }
         
-        let cleanPhone = rawPhoneNumber.replace(/\s+/g, '').replace(/-/g, '');
+        // تنظيف وحذف الفراغات والخطوط من الرقم
+        let cleanPhone = rawPhoneNumber.replace(/\s+/g, '').replace(/-/g, '').replace(/\+/g, '');
         
+        // معالجة صيغة رقم الموبايل وإدخال الكود الدولي للعراق تلقائياً
         if (cleanPhone.startsWith('07')) {
             cleanPhone = '964' + cleanPhone.substring(1);
         } else if (cleanPhone.startsWith('7')) {
             cleanPhone = '964' + cleanPhone;
         }
         
-        if(!cleanPhone || cleanPhone === "---") {
-            alert("يرجى إدخال رقم هاتف صحيح للزبون لفتح محادثة واتساب!");
+        if(!cleanPhone || cleanPhone === "---" || cleanPhone.length < 10) {
+            alert("يرجى إدخال رقم هاتف صحيح ومكتمل للزبون لفتح محادثة واتساب!");
             return;
         }
 
+        // استخدام encodeURIComponent للتأكد من تشفير كل الرموز والـ Emojis والأسطر بشكل آمن للمتصفحات
         const encodedText = encodeURIComponent(generatedTextInvoice);
-        const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
         
+        // الرابط الرسمي والمستقر لجميع أنظمة الموبايل والكمبيوتر
+        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
+        
+        // فتح الرابط
         window.open(whatsappUrl, '_blank');
     }
 
