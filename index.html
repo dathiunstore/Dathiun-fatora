@@ -60,9 +60,9 @@
             font-size: 0.85rem; border: 1px solid var(--fire-orange); 
         }
 
-        /* --- ستايل بطاقة كرت الفاتورة الناري (الذي سيتحول لصورة) --- */
+        /* --- ستايل بطاقة كرت الفاتورة الناري --- */
         #invoice-card-wrapper {
-            display: none; /* مخفي في البداية */
+            display: none;
             margin-top: 20px;
         }
         .invoice-card {
@@ -89,6 +89,14 @@
         .card-footer { text-align: center; margin-top: 25px; font-size: 0.9rem; color: var(--fire-orange); font-weight: bold; }
         
         .action-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        /* زر الواتساب الأخضر الاحترافي */
+        .whatsapp-btn {
+            grid-column: span 2;
+            background: linear-gradient(45deg, #25D366, #075E54) !important;
+            color: white !important;
+            font-size: 1.1rem;
+        }
+        .label-text { font-size: 0.9rem; color: var(--fire-orange); margin-top: 10px; display: block; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -96,9 +104,9 @@
 <div class="container">
     <div id="login-area" style="text-align: center;">
         <h2 style="font-size: 2rem;">Dathiun Store ☣️</h2>
-        <p style="color: #888;">نظام الفواتير الناري</p>
+        <p style="color: #888;">نظام فواتير داثيون ستور</p>
         <input type="text" id="pass-input" placeholder="الرمز السري">
-        <button onclick="checkPass()">دخول المنطقة المحظورة</button>
+        <button onclick="checkPass()">🔥دخول🔥</button>
         <p id="error-msg" style="color: #ff4444; display: none;">الرمز غير صحيح!</p>
     </div>
 
@@ -107,6 +115,7 @@
         <input type="text" id="name" placeholder="اسم الزبون">
         <input type="text" id="phone" placeholder="رقم الهاتف">
         <input type="text" id="address" placeholder="العنوان">
+        <input type="text" id="duration" placeholder="مدة العمل (مثال: ١٠ أيام كحد أقصى ويكون طلبك جاهز)">
 
         <span class="label-text">إضافة سريعة:</span>
         <div class="quick-btns">
@@ -146,6 +155,7 @@
                     <div><strong>الزبون:</strong> <span id="lbl-name"></span></div>
                     <div><strong>الهاتف:</strong> <span id="lbl-phone"></span></div>
                     <div><strong>العنوان:</strong> <span id="lbl-address"></span></div>
+                    <div id="card-duration-box" style="display:none;"><strong>مدة العمل:</strong> <span id="lbl-duration"></span></div>
                 </div>
                 <table class="card-table">
                     <thead>
@@ -171,13 +181,15 @@
             <div class="action-btns">
                 <button onclick="copyTextInvoice()" style="background: #222; color: #fff; border: 1px solid var(--fire-orange);">نسخ النص 📋</button>
                 <button onclick="downloadInvoiceImage()" style="background: linear-gradient(45deg, #ff6a00, #ffcc00); color: #000;">تحميل كصورة 🖼️</button>
+                <button onclick="sendToWhatsApp()" class="whatsapp-btn">إرسال الفاتورة عبر الواتساب 💬</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let generatedTextInvoice = ""; // متغير لحفظ النص الخام للنسخ التقليدي
+    let generatedTextInvoice = ""; 
+    let rawPhoneNumber = "";
 
     function fixNumbers(str) {
         if (typeof str !== 'string') return str;
@@ -220,33 +232,39 @@
 
     function setShipping(val) { document.getElementById('shipping').value = val; }
 
-    // دالة بناء الفاتورة وعرضها داخل الكرت الجمالي
     function generateInvoice() {
         const name = document.getElementById('name').value || "---";
-        const phone = fixNumbers(document.getElementById('phone').value) || "---";
+        const phoneInput = document.getElementById('phone').value || "";
+        rawPhoneNumber = fixNumbers(phoneInput); // تنظيف الأرقام ومعالجتها
         const addr = document.getElementById('address').value || "---";
+        const duration = document.getElementById('duration').value || "";
         const ship = parseInt(fixNumbers(document.getElementById('shipping').value)) || 0;
         const discInput = parseInt(fixNumbers(document.getElementById('discount-val').value)) || 0;
         const discType = document.getElementById('discount-type').value;
 
-        // تحديث معلومات الكرت المرئي الأساسية
+        // تحديث كرت الفاتورة الجمالي
         document.getElementById('lbl-name').innerText = name;
-        document.getElementById('lbl-phone').innerText = phone;
+        document.getElementById('lbl-phone').innerText = rawPhoneNumber || "---";
         document.getElementById('lbl-address').innerText = addr;
+
+        if(duration) {
+            document.getElementById('lbl-duration').innerText = duration;
+            document.getElementById('card-duration-box').style.display = 'block';
+        } else {
+            document.getElementById('card-duration-box').style.display = 'none';
+        }
 
         let itemsText = ""; let subtotal = 0; let count = 1;
         const tableBody = document.getElementById('card-items-body');
-        tableBody.innerHTML = ""; // تصفير الجدول أولاً
+        tableBody.innerHTML = ""; 
 
         document.querySelectorAll('.product-box').forEach(box => {
             const pN = box.querySelector('.p-name').value;
             const pP = parseInt(fixNumbers(box.querySelector('.p-price').value)) || 0;
             if(pN) {
-                // 1. بناء النص للنستخ التقليدي
                 itemsText += `• ${count} | ${pN} [${pP.toLocaleString()} د.ع]\n`;
                 subtotal += pP; count++;
 
-                // 2. بناء الأسطر داخل كرت الصورة الجمالي
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td>• ${pN}</td><td style="text-align: left;">${pP.toLocaleString()} د.ع</td>`;
                 tableBody.appendChild(tr);
@@ -256,16 +274,18 @@
         let discAmt = (discType === 'percent') ? (subtotal * (discInput / 100)) : discInput;
         const total = subtotal - discAmt + ship;
 
-        // تحديث قيم الحسابات بالكرت المرئي
         document.getElementById('lbl-subtotal').innerText = `${subtotal.toLocaleString()} د.ع`;
         document.getElementById('lbl-discount').innerText = `-${discAmt.toLocaleString()} د.ع`;
         document.getElementById('lbl-shipping').innerText = `${ship.toLocaleString()} د.ع`;
         document.getElementById('lbl-total').innerText = `${total.toLocaleString()} د.ع`;
 
-        // حفظ النص الخام احتياطاً لو أردت النسخ النصي العادي
+        // إضافة سطر مدة العمل إلى الرسالة النصية إذا تمت كتابته
+        let durationLine = duration ? `• مدة العمل: ${duration}\n` : "";
+        
+        // النص الكامل والجديد للفاتورة بمصطلحاتك المعدلة بدقة
         generatedTextInvoice = `📦 فاتورة الطلب - Dathiun Store\n` +
                     `مرحباً ${name} ✨\n` +
-                    `تم تجهيز طلبك بنجاح ✅\n\n` +
+                    `تم تجهيز فاتورتك بنجاح ✅\n\n` +
                     `📝 تفاصيل الطلب:\n${itemsText}\n` +
                     `--------------------------\n` +
                     `💰 المجموع الفرعي: ${subtotal.toLocaleString()} د.ع\n` +
@@ -275,16 +295,15 @@
                     `💵 المجموع الكلي: ${total.toLocaleString()} د.ع\n\n` +
                     `📍 معلومات الاستلام:\n` +
                     `• العنوان: ${addr}\n` +
-                    `• الهاتف: ${phone}\n\n` +
+                    `• الهاتف: ${rawPhoneNumber}\n` +
+                    durationLine + `\n` +
                     `شكراً لدعمك لـ Dathiun Store ☣️\n` +
                     `نتمنى أن تنال أعمالنا إعجابكم 🧡`;
 
-        // إظهار منطقة الفاتورة الجاهزة بالأسفل
         document.getElementById('invoice-card-wrapper').style.display = 'block';
         window.scrollTo({ top: document.getElementById('invoice-card-wrapper').offsetTop, behavior: 'smooth' });
     }
 
-    // وظيفة نسخ النص العادي
     function copyTextInvoice() {
         if(!generatedTextInvoice) return;
         navigator.clipboard.writeText(generatedTextInvoice).then(() => {
@@ -292,14 +311,11 @@
         });
     }
 
-    // الوظيفة الخرافية: تحويل كرت الـ HTML إلى صورة حقيقية وتحميلها بجهازك
     function downloadInvoiceImage() {
         const element = document.getElementById('invoice-target');
-        
-        // استخدام مكتبة html2canvas لالتقاط الصندوق بدقة عالية ومطابقة لستايلك الناري
         html2canvas(element, {
             backgroundColor: '#0d0d0d',
-            scale: 2, // لرفع دقة وجودة الصورة المنتجة
+            scale: 2, 
             logging: false,
             useCORS: true
         }).then(canvas => {
@@ -310,6 +326,33 @@
             link.href = image;
             link.click();
         });
+    }
+
+    // وظيفة الإرسال للواتساب الذكية وتجهيز نص الرسالة للرقم الموجود بالفاتورة
+    function sendToWhatsApp() {
+        if(!generatedTextInvoice) {
+            alert("يرجى توليد الفاتورة أولاً!");
+            return;
+        }
+        
+        // تنظيف الهاتف وتهيئة الكود الدولي لفتح محادثة صحيحة تلقائياً ببادئة (+964) مالت العراق
+        let cleanPhone = rawPhoneNumber.replace(/\s+/g, '').replace(/-/g, '');
+        
+        if (cleanPhone.startsWith('07')) {
+            cleanPhone = '964' + cleanPhone.substring(1);
+        } else if (cleanPhone.startsWith('7')) {
+            cleanPhone = '964' + cleanPhone;
+        }
+        
+        if(!cleanPhone || cleanPhone === "---") {
+            alert("يرجى إدخال رقم هاتف صحيح للزبون لفتح محادثة واتساب!");
+            return;
+        }
+
+        const encodedText = encodeURIComponent(generatedTextInvoice);
+        const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
+        
+        window.open(whatsappUrl, '_blank');
     }
 
     addItem();
