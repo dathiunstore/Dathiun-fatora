@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام فواتير Dathiun Store - Fire Edition</title>
+    <title>نظام fواتير Dathiun Store - Fire Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -192,6 +192,7 @@
 <script>
     let generatedTextInvoice = ""; 
     let rawPhoneNumber = "";
+    let whatsappTextInvoice = ""; // متغير مخصص لنص الواتساب مع عبارة التثبيت
 
     // توليد خيارات القائمة المنسدلة من 1 إلى 30 تلقائياً
     const durationSelect = document.getElementById('duration');
@@ -293,6 +294,7 @@
 
         let durationLine = formattedDuration ? `• مدة العمل: ${formattedDuration}\n` : "";
         
+        // 1. النص الأصلي المحفوظ لزر "نسخ النص" العادي
         generatedTextInvoice = `📦 فاتورة الطلب - Dathiun Store\n` +
                     `مرحباً ${name} ✨\n` +
                     `تم تجهيز فاتورتك بنجاح ✅\n\n` +
@@ -309,6 +311,12 @@
                     durationLine + `\n` +
                     `شكراً لدعمك لـ Dathiun Store ☣️\n` +
                     `نتمنى أن تنال أعمالنا إعجابكم 🧡`;
+
+        // 2. النص المطور والمصحح إملائياً الخاص بالواتساب مع إضافة عبارة التثبيت الإجبارية بالأسفل المرتبة
+        whatsappTextInvoice = generatedTextInvoice + `\n\n` +
+                    `━━━━━━━━━━━━━━━━━━━\n` +
+                    `⚠️ *ملاحظة مهمة للتثبيت:* ⚠️\n` +
+                    `*رجاءً، للتثبيت قم بالرد على هذه الرسالة.*`;
 
         document.getElementById('invoice-card-wrapper').style.display = 'block';
         window.scrollTo({ top: document.getElementById('invoice-card-wrapper').offsetTop, behavior: 'smooth' });
@@ -338,17 +346,14 @@
         });
     }
 
-    // الدالة المحدثة والمصلحة تماماً باستخدام الصيغة المستقرة والموثوقة wa.me
     function sendToWhatsApp() {
-        if(!generatedTextInvoice) {
+        if(!whatsappTextInvoice) {
             alert("يرجى توليد الفاتورة أولاً!");
             return;
         }
         
-        // تنظيف وحذف الفراغات والخطوط من الرقم
         let cleanPhone = rawPhoneNumber.replace(/\s+/g, '').replace(/-/g, '').replace(/\+/g, '');
         
-        // معالجة صيغة رقم الموبايل وإدخال الكود الدولي للعراق تلقائياً
         if (cleanPhone.startsWith('07')) {
             cleanPhone = '964' + cleanPhone.substring(1);
         } else if (cleanPhone.startsWith('7')) {
@@ -360,13 +365,10 @@
             return;
         }
 
-        // استخدام encodeURIComponent للتأكد من تشفير كل الرموز والـ Emojis والأسطر بشكل آمن للمتصفحات
-        const encodedText = encodeURIComponent(generatedTextInvoice);
-        
-        // الرابط الرسمي والمستقر لجميع أنظمة الموبايل والكمبيوتر
+        // إرسال النص المطور المضاف إليه حقل التثبيت والمصحح إملائياً
+        const encodedText = encodeURIComponent(whatsappTextInvoice);
         const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
         
-        // فتح الرابط
         window.open(whatsappUrl, '_blank');
     }
 
