@@ -39,7 +39,7 @@
             font-size: 16px; 
         }
         
-        input:focus { border-color: var(--fire-yellow); box-shadow: 0 0 8px rgba(255, 204, 0, 0.3); }
+        input:focus, select:focus { border-color: var(--fire-yellow); box-shadow: 0 0 8px rgba(255, 204, 0, 0.3); }
         button {
             width: 100%; padding: 12px; margin: 8px 0;
             border-radius: 8px; font-weight: bold;
@@ -89,7 +89,6 @@
         .card-footer { text-align: center; margin-top: 25px; font-size: 0.9rem; color: var(--fire-orange); font-weight: bold; }
         
         .action-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        /* زر الواتساب الأخضر الاحترافي */
         .whatsapp-btn {
             grid-column: span 2;
             background: linear-gradient(45deg, #25D366, #075E54) !important;
@@ -115,7 +114,10 @@
         <input type="text" id="name" placeholder="اسم الزبون">
         <input type="text" id="phone" placeholder="رقم الهاتف">
         <input type="text" id="address" placeholder="العنوان">
-        <input type="text" id="duration" placeholder="مدة العمل (مثال: ١٠ أيام كحد أقصى ويكون طلبك جاهز)">
+        
+        <select id="duration">
+            <option value="">حدد مدة العمل (اختياري)</option>
+            </select>
 
         <span class="label-text">إضافة سريعة:</span>
         <div class="quick-btns">
@@ -129,8 +131,8 @@
 
         <span class="label-text">سعر التوصيل:</span>
         <div class="ship-btns">
-            <button type="button" style="background:#333; color:white;" onclick="setShipping(5000)">٥,٠٠٠</button>
-            <button type="button" style="background:#333; color:white;" onclick="setShipping(6000)">٦,٠٠٠</button>
+            <button type="button" style="background:#333; color:white;" onclick="setShipping(5000)">5,000</button>
+            <button type="button" style="background:#333; color:white;" onclick="setShipping(6000)">6,000</button>
         </div>
         <input type="text" id="shipping" placeholder="سعر التوصيل">
 
@@ -143,7 +145,7 @@
             </select>
         </div>
 
-        <button onclick="generateInvoice()" style="margin-top: 20px; font-size: 1.2rem;">توليد الفاتورة النارية 🔥</button>
+        <button onclick="generateInvoice()" style="margin-top: 20px; font-size: 1.2rem;">توليد الفاتورة</button>
 
         <div id="invoice-card-wrapper">
             <div class="invoice-card" id="invoice-target">
@@ -191,6 +193,15 @@
     let generatedTextInvoice = ""; 
     let rawPhoneNumber = "";
 
+    // توليد خيارات القائمة المنسدلة من 1 إلى 30 تلقائياً فور تحميل الصفحة
+    const durationSelect = document.getElementById('duration');
+    for (let i = 1; i <= 30; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.text = `${i} يوم`;
+        durationSelect.appendChild(option);
+    }
+
     function fixNumbers(str) {
         if (typeof str !== 'string') return str;
         return str.replace(/[٠-٩]/g, function(d) {
@@ -235,20 +246,22 @@
     function generateInvoice() {
         const name = document.getElementById('name').value || "---";
         const phoneInput = document.getElementById('phone').value || "";
-        rawPhoneNumber = fixNumbers(phoneInput); // تنظيف الأرقام ومعالجتها
+        rawPhoneNumber = fixNumbers(phoneInput);
         const addr = document.getElementById('address').value || "---";
-        const duration = document.getElementById('duration').value || "";
+        const durationValue = document.getElementById('duration').value;
         const ship = parseInt(fixNumbers(document.getElementById('shipping').value)) || 0;
         const discInput = parseInt(fixNumbers(document.getElementById('discount-val').value)) || 0;
         const discType = document.getElementById('discount-type').value;
 
-        // تحديث كرت الفاتورة الجمالي
+        // صياغة جملة الأيام تلقائياً إذا تم الاختيار
+        let formattedDuration = durationValue ? `${durationValue} أيام كحد أقصى ويكون طلبك جاهز` : "";
+
         document.getElementById('lbl-name').innerText = name;
         document.getElementById('lbl-phone').innerText = rawPhoneNumber || "---";
         document.getElementById('lbl-address').innerText = addr;
 
-        if(duration) {
-            document.getElementById('lbl-duration').innerText = duration;
+        if(formattedDuration) {
+            document.getElementById('lbl-duration').innerText = formattedDuration;
             document.getElementById('card-duration-box').style.display = 'block';
         } else {
             document.getElementById('card-duration-box').style.display = 'none';
@@ -279,10 +292,8 @@
         document.getElementById('lbl-shipping').innerText = `${ship.toLocaleString()} د.ع`;
         document.getElementById('lbl-total').innerText = `${total.toLocaleString()} د.ع`;
 
-        // إضافة سطر مدة العمل إلى الرسالة النصية إذا تمت كتابته
-        let durationLine = duration ? `• مدة العمل: ${duration}\n` : "";
+        let durationLine = formattedDuration ? `• مدة العمل: ${formattedDuration}\n` : "";
         
-        // النص الكامل والجديد للفاتورة بمصطلحاتك المعدلة بدقة
         generatedTextInvoice = `📦 فاتورة الطلب - Dathiun Store\n` +
                     `مرحباً ${name} ✨\n` +
                     `تم تجهيز فاتورتك بنجاح ✅\n\n` +
@@ -328,14 +339,12 @@
         });
     }
 
-    // وظيفة الإرسال للواتساب الذكية وتجهيز نص الرسالة للرقم الموجود بالفاتورة
     function sendToWhatsApp() {
         if(!generatedTextInvoice) {
             alert("يرجى توليد الفاتورة أولاً!");
             return;
         }
         
-        // تنظيف الهاتف وتهيئة الكود الدولي لفتح محادثة صحيحة تلقائياً ببادئة (+964) مالت العراق
         let cleanPhone = rawPhoneNumber.replace(/\s+/g, '').replace(/-/g, '');
         
         if (cleanPhone.startsWith('07')) {
