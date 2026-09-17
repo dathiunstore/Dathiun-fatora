@@ -817,7 +817,7 @@ function printInvoice() {
 
     // Positions are based directly on the 1024x1536 approved mockup.
     // Each row is centered inside its actual table cell.
-    const rowY = [40.55, 43.68, 46.81, 49.94, 53.07, 56.20, 59.33, 62.46, 65.59, 68.72];
+    const rowY = [41.55, 44.28, 47.01, 49.74, 52.47, 55.21, 57.94, 60.67, 63.40, 66.13];
 
     const itemHtml = items.map((it, i) => {
         const y = rowY[i];
@@ -889,20 +889,20 @@ body{font-family:Arial,Tahoma,"Segoe UI",sans-serif;color:#111}
     font-size:8.5pt;text-align:right;direction:ltr;
 }
 .customer-name{
-    top:26.25%;right:11.5%;width:34%;
+    top:26.15%;left:13.0%;width:34.0%;
     text-align:right;direction:rtl;
 }
 .customer-phone{
-    top:32.65%;right:11.5%;width:34%;
+    top:31.95%;left:13.0%;width:34.0%;
     text-align:right;direction:ltr;
 }
 .customer-address{
-    top:26.25%;left:9.8%;width:35%;
-    text-align:left;direction:ltr;
+    top:26.15%;right:9.0%;width:35.0%;
+    text-align:right;direction:ltr;
 }
 .customer-duration{
-    top:32.65%;left:9.8%;width:35%;
-    text-align:left;direction:rtl;
+    top:31.95%;right:9.0%;width:35.0%;
+    text-align:right;direction:rtl;
 }
 
 /* Products */
@@ -927,23 +927,23 @@ body{font-family:Arial,Tahoma,"Segoe UI",sans-serif;color:#111}
 
 /* Bottom totals */
 .subtotal{
-    top:70.45%;left:6.0%;width:20.0%;
-    text-align:center;font-size:8.5pt;direction:ltr;
+    top:70.55%;right:7.0%;width:30.0%;
+    text-align:right;font-size:8.5pt;direction:ltr;
 }
 .discount{
-    top:77.05%;left:6.0%;width:20.0%;
-    text-align:center;font-size:8.5pt;direction:ltr;
+    top:77.55%;right:7.0%;width:30.0%;
+    text-align:right;font-size:8.5pt;direction:ltr;
 }
 .shipping{
-    top:73.75%;left:6.0%;width:20.0%;
-    text-align:center;font-size:8.5pt;direction:ltr;
+    top:74.05%;right:7.0%;width:30.0%;
+    text-align:right;font-size:8.5pt;direction:ltr;
 }
 .grand-total{
-    top:80.45%;left:6.0%;width:20.0%;
-    text-align:center;color:#fff;font-size:9.5pt;font-weight:800;direction:ltr;
+    top:81.05%;right:7.0%;width:30.0%;
+    text-align:right;color:#fff;font-size:9.5pt;font-weight:800;direction:ltr;
 }
 .note{
-    top:70.0%;left:8.0%;width:43.0%;height:13.5%;
+    top:74.85%;left:8.2%;width:42.5%;height:10.5%;
     white-space:pre-wrap;text-align:right;direction:rtl;
     font-size:8pt;line-height:1.55;padding:0;
 }
