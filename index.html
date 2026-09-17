@@ -487,7 +487,7 @@ async function saveInvoice(inv) {
         customer_name:inv.customer_name, customer_phone:inv.customer_phone,
         customer_address:inv.customer_address, subtotal:inv.subtotal,
         discount:inv.discount, shipping:inv.shipping, total:inv.total,
-        duration:inv.duration, customer_id:customerId
+        work_duration:inv.duration, customer_id:customerId
     };
 
     const orderResult = await db.from('orders').insert(orderPayload).select('id').single();
@@ -502,7 +502,7 @@ async function saveInvoice(inv) {
 
     if (inv.items.length) {
         const rows = inv.items.map(x => ({
-            order_id:orderResult.data.id, product_name:x.name, price:x.price
+            order_id:orderResult.data.id, product_id:null, product_name:x.name, unit_price:x.price, quantity:1, line_total:x.price
         }));
         const result = await db.from('order_items').insert(rows);
         if (result.error) alert("تم حفظ الفاتورة، لكن تفاصيل المواد فشلت:\n" + result.error.message);
