@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>نظام fواتير Dathiun Store - Fire Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
     <style>
         :root {
             --primary-bg: #050505;
@@ -104,12 +105,28 @@
     <div id="login-area" style="text-align: center;">
         <h2 style="font-size: 2rem;">Dathiun Store ☣️</h2>
         <p style="color: #888;">نظام فواتير داثيون ستور</p>
-        <input type="text" id="pass-input" placeholder="الرمز السري">
-        <button onclick="checkPass()">🔥دخول🔥</button>
-        <p id="error-msg" style="color: #ff4444; display: none;">الرمز غير صحيح!</p>
+        <input type="email" id="login-email" placeholder="البريد الإلكتروني" autocomplete="username">
+        <input type="password" id="login-password" placeholder="كلمة المرور" autocomplete="current-password">
+        <button onclick="loginWithSupabase()">🔥دخول🔥</button>
+        <p id="error-msg" style="color: #ff4444; display: none;"></p>
     </div>
 
     <div id="main-content" style="display: none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+            <button type="button" class="item-btn" onclick="toggleProductManager()">📦 إدارة المنتجات</button>
+            <button type="button" class="item-btn" onclick="downloadBackup()">💾 نسخة احتياطية</button>
+        </div>
+
+        <div id="product-manager" style="display:none;background:#161616;border:1px solid #333;border-radius:12px;padding:12px;margin-bottom:15px;">
+            <h3 style="margin-top:0;">📦 المنتجات المحفوظة</h3>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px;">
+                <input type="text" id="new-product-name" placeholder="اسم المنتج">
+                <input type="text" id="new-product-price" placeholder="السعر">
+            </div>
+            <button type="button" onclick="saveProduct()">➕ حفظ المنتج</button>
+            <div id="saved-products-list"></div>
+        </div>
+
         <h3>🔥 إنشاء فاتورة جديدة</h3>
         <input type="text" id="name" placeholder="اسم الزبون">
         <input type="text" id="phone" placeholder="رقم الهاتف">
@@ -157,6 +174,8 @@
                     <div><strong>الزبون:</strong> <span id="lbl-name"></span></div>
                     <div><strong>الهاتف:</strong> <span id="lbl-phone"></span></div>
                     <div><strong>العنوان:</strong> <span id="lbl-address"></span></div>
+                    <div><strong>رقم الفاتورة:</strong> <span id="lbl-invoice-number"></span></div>
+                    <div><strong>تاريخ الفاتورة:</strong> <span id="lbl-invoice-date"></span></div>
                     <div id="card-duration-box" style="display:none;"><strong>مدة العمل:</strong> <span id="lbl-duration"></span></div>
                 </div>
                 <table class="card-table">
@@ -182,6 +201,7 @@
 
             <div class="action-btns">
                 <button onclick="copyTextInvoice()" style="background: #222; color: #fff; border: 1px solid var(--fire-orange);">نسخ النص 📋</button>
+                <button onclick="printInvoice()" style="background: #222; color: #fff; border: 1px solid var(--fire-orange);">🖨️ طباعة</button>
                 <button onclick="downloadInvoiceImage()" style="background: linear-gradient(45deg, #ff6a00, #ffcc00); color: #000;">تحميل كصورة 🖼️</button>
                 <button onclick="sendToWhatsApp()" class="whatsapp-btn">إرسال الفاتورة عبر الواتساب 💬</button>
             </div>
@@ -190,189 +210,351 @@
 </div>
 
 <script>
-    let generatedTextInvoice = ""; 
-    let rawPhoneNumber = "";
-    let whatsappTextInvoice = ""; // متغير مخصص لنص الواتساب مع عبارة التثبيت
+const SUPABASE_URL = "https://qdbzynwzlcueeygmnexu.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_jbm9Q5tMZil3FwtZI8qZAA_kD4ACi8b";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-    // توليد خيارات القائمة المنسدلة من 1 إلى 30 تلقائياً
-    const durationSelect = document.getElementById('duration');
-    for (let i = 1; i <= 30; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.text = `${i} يوم`;
-        durationSelect.appendChild(option);
+let generatedTextInvoice = "";
+let whatsappTextInvoice = "";
+let rawPhoneNumber = "";
+let currentInvoice = null;
+let savedProducts = [];
+
+const durationSelect = document.getElementById('duration');
+for (let i = 1; i <= 30; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.text = `${i} يوم`;
+    durationSelect.appendChild(option);
+}
+
+function fixNumbers(value) {
+    if (value === null || value === undefined) return value;
+    return String(value)
+        .replace(/[٠-٩]/g, d => d.charCodeAt(0) - 1632)
+        .replace(/[۰-۹]/g, d => d.charCodeAt(0) - 1776)
+        .replace(/,/g, '');
+}
+
+function money(value) {
+    return (Number(value) || 0).toLocaleString('en-US', {maximumFractionDigits: 2}) + ' د.ع';
+}
+
+function todayString() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function randomInvoiceNumber() {
+    return `DT-${Math.floor(100000 + Math.random()*900000)}-${Math.floor(100 + Math.random()*900)}`;
+}
+
+function showError(message) {
+    const el = document.getElementById('error-msg');
+    el.innerText = message;
+    el.style.display = 'block';
+}
+
+async function loginWithSupabase() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return showError("اكتب الإيميل وكلمة المرور.");
+
+    const {error} = await db.auth.signInWithPassword({email, password});
+    if (error) return showError("الإيميل أو كلمة المرور غير صحيحة.");
+
+    document.getElementById('error-msg').style.display = 'none';
+    document.getElementById('login-area').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    await loadProducts();
+}
+
+async function restoreSession() {
+    const {data} = await db.auth.getSession();
+    if (data.session) {
+        document.getElementById('login-area').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        await loadProducts();
+    }
+}
+
+db.auth.onAuthStateChange((_event, session) => {
+    if (session) {
+        document.getElementById('login-area').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+    }
+});
+
+async function loadProducts() {
+    const {data, error} = await db.from('products').select('*').order('name', {ascending:true});
+    if (error) {
+        console.warn(error.message);
+        savedProducts = [];
+    } else {
+        savedProducts = data || [];
+    }
+    renderSavedProducts();
+}
+
+function toggleProductManager() {
+    const el = document.getElementById('product-manager');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    if (el.style.display === 'block') loadProducts();
+}
+
+async function saveProduct() {
+    const name = document.getElementById('new-product-name').value.trim();
+    const price = Number(fixNumbers(document.getElementById('new-product-price').value)) || 0;
+    if (!name || price <= 0) return alert("اكتب اسم المنتج وسعره.");
+
+    const {error} = await db.from('products').insert({name, price});
+    if (error) return alert("ما قدرت أحفظ المنتج:\n" + error.message);
+
+    document.getElementById('new-product-name').value = '';
+    document.getElementById('new-product-price').value = '';
+    await loadProducts();
+    alert("تم حفظ المنتج بشكل دائم ✅");
+}
+
+function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+}
+
+function renderSavedProducts() {
+    const box = document.getElementById('saved-products-list');
+    if (!box) return;
+    if (!savedProducts.length) {
+        box.innerHTML = '<p style="color:#888;text-align:center;">لا توجد منتجات محفوظة بعد.</p>';
+        return;
+    }
+    box.innerHTML = savedProducts.map(p => `
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;background:#222;padding:8px;border-radius:8px;margin:7px 0;">
+            <span>${escapeHtml(p.name)}</span>
+            <strong>${money(p.price)}</strong>
+            <button type="button" style="width:auto;margin:0;padding:7px 10px;" onclick='addSpecificItem(${JSON.stringify(p.name)},${Number(p.price)})'>إضافة</button>
+        </div>`).join('');
+}
+
+function addItem() {
+    const container = document.getElementById('items-list');
+    const div = document.createElement('div');
+    div.className = 'product-box';
+    div.innerHTML = `
+        <input type="text" class="p-name" placeholder="المادة" style="flex: 2;">
+        <input type="text" class="p-price" placeholder="السعر" style="flex: 1;">
+        <button onclick="this.parentElement.remove()" style="width:35px;background:#ff4444;color:white;padding:0;margin:0;">X</button>`;
+    container.appendChild(div);
+}
+
+function addSpecificItem(name, price) {
+    const div = document.createElement('div');
+    div.className = 'product-box';
+    div.innerHTML = `
+        <input type="text" class="p-name" style="flex:2;">
+        <input type="text" class="p-price" style="flex:1;">
+        <button onclick="this.parentElement.remove()" style="width:35px;background:#ff4444;color:white;padding:0;margin:0;">X</button>`;
+    div.querySelector('.p-name').value = name;
+    div.querySelector('.p-price').value = price;
+    document.getElementById('items-list').appendChild(div);
+}
+
+function setShipping(val) {
+    document.getElementById('shipping').value = val;
+}
+
+async function uniqueInvoiceNumber() {
+    for (let i=0; i<20; i++) {
+        const candidate = randomInvoiceNumber();
+        const {data, error} = await db.from('orders').select('id').eq('invoice_number', candidate).limit(1);
+        if (error || !data || data.length === 0) return candidate;
+    }
+    throw new Error("تعذر توليد رقم فاتورة فريد.");
+}
+
+async function generateInvoice() {
+    const name = document.getElementById('name').value.trim() || "---";
+    rawPhoneNumber = fixNumbers(document.getElementById('phone').value.trim()) || "";
+    const addr = document.getElementById('address').value.trim() || "---";
+    const durationValue = document.getElementById('duration').value;
+    const ship = Number(fixNumbers(document.getElementById('shipping').value)) || 0;
+    const discInput = Number(fixNumbers(document.getElementById('discount-val').value)) || 0;
+    const discType = document.getElementById('discount-type').value;
+
+    const formattedDuration = durationValue ? `${durationValue} أيام كحد أقصى ويكون طلبك جاهز` : "";
+    const items = [];
+    let itemsText = "", subtotal = 0, count = 1;
+    const tableBody = document.getElementById('card-items-body');
+    tableBody.innerHTML = "";
+
+    document.querySelectorAll('.product-box').forEach(box => {
+        const pN = box.querySelector('.p-name').value.trim();
+        const pP = Number(fixNumbers(box.querySelector('.p-price').value)) || 0;
+        if (pN) {
+            items.push({name:pN, price:pP});
+            itemsText += `• ${count} | ${pN} [${money(pP)}]\n`;
+            subtotal += pP; count++;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>• ${escapeHtml(pN)}</td><td style="text-align:left;">${money(pP)}</td>`;
+            tableBody.appendChild(tr);
+        }
+    });
+
+    const discAmt = discType === 'percent' ? subtotal * (discInput/100) : discInput;
+    const total = subtotal - discAmt + ship;
+    const invoiceNumber = await uniqueInvoiceNumber();
+    const invoiceDate = todayString();
+
+    document.getElementById('lbl-name').innerText = name;
+    document.getElementById('lbl-phone').innerText = rawPhoneNumber || "---";
+    document.getElementById('lbl-address').innerText = addr;
+    document.getElementById('lbl-invoice-number').innerText = invoiceNumber;
+    document.getElementById('lbl-invoice-date').innerText = invoiceDate;
+
+    if (formattedDuration) {
+        document.getElementById('lbl-duration').innerText = formattedDuration;
+        document.getElementById('card-duration-box').style.display = 'block';
+    } else {
+        document.getElementById('card-duration-box').style.display = 'none';
     }
 
-    function fixNumbers(str) {
-        if (typeof str !== 'string') return str;
-        return str.replace(/[٠-٩]/g, function(d) {
-            return d.charCodeAt(0) - 1632;
-        });
-    }
+    document.getElementById('lbl-subtotal').innerText = money(subtotal);
+    document.getElementById('lbl-discount').innerText = `-${money(discAmt)}`;
+    document.getElementById('lbl-shipping').innerText = money(ship);
+    document.getElementById('lbl-total').innerText = money(total);
 
-    function checkPass() {
-        const input = fixNumbers(document.getElementById('pass-input').value);
-        if(input === '5445') {
-            document.getElementById('login-area').style.display = 'none';
-            document.getElementById('main-content').style.display = 'block';
-        } else { document.getElementById('error-msg').style.display = 'block'; }
-    }
+    const durationLine = formattedDuration ? `• مدة العمل: ${formattedDuration}\n` : "";
+    generatedTextInvoice =
+        `📦 فاتورة الطلب - Dathiun Store\nمرحباً ${name} ✨\nتم تجهيز فاتورتك بنجاح ✅\n\n` +
+        `🧾 رقم الفاتورة: ${invoiceNumber}\n📅 التاريخ: ${invoiceDate}\n\n` +
+        `📝 تفاصيل الطلب:\n${itemsText}\n--------------------------\n` +
+        `💰 المجموع الفرعي: ${money(subtotal)}\n📉 الخصم: -${money(discAmt)}\n🚚 التوصيل: ${money(ship)}\n` +
+        `--------------------------\n💵 المجموع الكلي: ${money(total)}\n\n📍 معلومات الاستلام:\n` +
+        `• العنوان: ${addr}\n• الهاتف: ${rawPhoneNumber || "---"}\n${durationLine}` +
+        `شكراً لدعمك لـ Dathiun Store ☣️\nنتمنى أن تنال أعمالنا إعجابكم 🧡`;
 
-    function addItem() {
-        const container = document.getElementById('items-list');
-        const div = document.createElement('div');
-        div.className = 'product-box';
-        div.innerHTML = `
-            <input type="text" class="p-name" placeholder="المادة" style="flex: 2;">
-            <input type="text" class="p-price" placeholder="السعر" style="flex: 1;">
-            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0; margin:0;">X</button>
-        `;
-        container.appendChild(div);
-    }
+    whatsappTextInvoice = generatedTextInvoice + `\n\n━━━━━━━━━━━━━━━━━━━\n⚠️ *ملاحظة مهمة للتثبيت:* ⚠️\n*رجاءً، للتثبيت قم بالرد على هذه الرسالة.*`;
 
-    function addSpecificItem(name, price) {
-        const container = document.getElementById('items-list');
-        const div = document.createElement('div');
-        div.className = 'product-box';
-        div.innerHTML = `
-            <input type="text" class="p-name" value="${name}" style="flex: 2;">
-            <input type="text" class="p-price" value="${price}" style="flex: 1;">
-            <button onclick="this.parentElement.remove()" style="width:35px; background:#ff4444; color:white; padding:0; margin:0;">X</button>
-        `;
-        container.appendChild(div);
-    }
+    currentInvoice = {
+        invoice_number:invoiceNumber, invoice_date:invoiceDate,
+        customer_name:name, customer_phone:rawPhoneNumber,
+        customer_address:addr, duration:durationValue ? Number(durationValue) : null,
+        items, subtotal, discount:discAmt, discount_type:discType,
+        shipping:ship, total
+    };
 
-    function setShipping(val) { document.getElementById('shipping').value = val; }
+    document.getElementById('invoice-card-wrapper').style.display = 'block';
+    window.scrollTo({top:document.getElementById('invoice-card-wrapper').offsetTop,behavior:'smooth'});
+    await saveInvoice(currentInvoice);
+}
 
-    function generateInvoice() {
-        const name = document.getElementById('name').value || "---";
-        const phoneInput = document.getElementById('phone').value || "";
-        rawPhoneNumber = fixNumbers(phoneInput);
-        const addr = document.getElementById('address').value || "---";
-        const durationValue = document.getElementById('duration').value;
-        const ship = parseInt(fixNumbers(document.getElementById('shipping').value)) || 0;
-        const discInput = parseInt(fixNumbers(document.getElementById('discount-val').value)) || 0;
-        const discType = document.getElementById('discount-type').value;
+async function saveInvoice(inv) {
+    let customerId = null;
 
-        let formattedDuration = durationValue ? `${durationValue} أيام كحد أقصى ويكون طلبك جاهز` : "";
-
-        document.getElementById('lbl-name').innerText = name;
-        document.getElementById('lbl-phone').innerText = rawPhoneNumber || "---";
-        document.getElementById('lbl-address').innerText = addr;
-
-        if(formattedDuration) {
-            document.getElementById('lbl-duration').innerText = formattedDuration;
-            document.getElementById('card-duration-box').style.display = 'block';
+    if (inv.customer_phone) {
+        const found = await db.from('customers').select('id').eq('phone',inv.customer_phone).limit(1);
+        if (!found.error && found.data?.length) {
+            customerId = found.data[0].id;
+            await db.from('customers').update({
+                name:inv.customer_name, address:inv.customer_address
+            }).eq('id',customerId);
         } else {
-            document.getElementById('card-duration-box').style.display = 'none';
+            const created = await db.from('customers').insert({
+                name:inv.customer_name, phone:inv.customer_phone, address:inv.customer_address
+            }).select('id').single();
+            if (!created.error) customerId = created.data.id;
         }
-
-        let itemsText = ""; let subtotal = 0; let count = 1;
-        const tableBody = document.getElementById('card-items-body');
-        tableBody.innerHTML = ""; 
-
-        document.querySelectorAll('.product-box').forEach(box => {
-            const pN = box.querySelector('.p-name').value;
-            const pP = parseInt(fixNumbers(box.querySelector('.p-price').value)) || 0;
-            if(pN) {
-                itemsText += `• ${count} | ${pN} [${pP.toLocaleString()} د.ع]\n`;
-                subtotal += pP; count++;
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>• ${pN}</td><td style="text-align: left;">${pP.toLocaleString()} د.ع</td>`;
-                tableBody.appendChild(tr);
-            }
-        });
-
-        let discAmt = (discType === 'percent') ? (subtotal * (discInput / 100)) : discInput;
-        const total = subtotal - discAmt + ship;
-
-        document.getElementById('lbl-subtotal').innerText = `${subtotal.toLocaleString()} د.ع`;
-        document.getElementById('lbl-discount').innerText = `-${discAmt.toLocaleString()} د.ع`;
-        document.getElementById('lbl-shipping').innerText = `${ship.toLocaleString()} د.ع`;
-        document.getElementById('lbl-total').innerText = `${total.toLocaleString()} د.ع`;
-
-        let durationLine = formattedDuration ? `• مدة العمل: ${formattedDuration}\n` : "";
-        
-        // 1. النص الأصلي المحفوظ لزر "نسخ النص" العادي
-        generatedTextInvoice = `📦 فاتورة الطلب - Dathiun Store\n` +
-                    `مرحباً ${name} ✨\n` +
-                    `تم تجهيز فاتورتك بنجاح ✅\n\n` +
-                    `📝 تفاصيل الطلب:\n${itemsText}\n` +
-                    `--------------------------\n` +
-                    `💰 المجموع الفرعي: ${subtotal.toLocaleString()} د.ع\n` +
-                    `📉 الخصم: -${discAmt.toLocaleString()} د.ع\n` +
-                    `🚚 التوصيل: ${ship.toLocaleString()} د.ع\n` +
-                    `--------------------------\n` +
-                    `💵 المجموع الكلي: ${total.toLocaleString()} د.ع\n\n` +
-                    `📍 معلومات الاستلام:\n` +
-                    `• العنوان: ${addr}\n` +
-                    `• الهاتف: ${rawPhoneNumber}\n` +
-                    durationLine + `\n` +
-                    `شكراً لدعمك لـ Dathiun Store ☣️\n` +
-                    `نتمنى أن تنال أعمالنا إعجابكم 🧡`;
-
-        // 2. النص المطور والمصحح إملائياً الخاص بالواتساب مع إضافة عبارة التثبيت الإجبارية بالأسفل المرتبة
-        whatsappTextInvoice = generatedTextInvoice + `\n\n` +
-                    `━━━━━━━━━━━━━━━━━━━\n` +
-                    `⚠️ *ملاحظة مهمة للتثبيت:* ⚠️\n` +
-                    `*رجاءً، للتثبيت قم بالرد على هذه الرسالة.*`;
-
-        document.getElementById('invoice-card-wrapper').style.display = 'block';
-        window.scrollTo({ top: document.getElementById('invoice-card-wrapper').offsetTop, behavior: 'smooth' });
     }
 
-    function copyTextInvoice() {
-        if(!generatedTextInvoice) return;
-        navigator.clipboard.writeText(generatedTextInvoice).then(() => {
-            alert("تم نسخ النص بنجاح! 📋");
-        });
+    const orderPayload = {
+        invoice_number:inv.invoice_number, invoice_date:inv.invoice_date,
+        customer_name:inv.customer_name, customer_phone:inv.customer_phone,
+        customer_address:inv.customer_address, subtotal:inv.subtotal,
+        discount:inv.discount, shipping:inv.shipping, total:inv.total,
+        duration:inv.duration, customer_id:customerId
+    };
+
+    const orderResult = await db.from('orders').insert(orderPayload).select('id').single();
+    if (orderResult.error) {
+        console.error(orderResult.error);
+        alert("الفاتورة تولدت، لكن حفظها فشل:\n" + orderResult.error.message);
+        return;
     }
 
-    function downloadInvoiceImage() {
-        const element = document.getElementById('invoice-target');
-        html2canvas(element, {
-            backgroundColor: '#0d0d0d',
-            scale: 2, 
-            logging: false,
-            useCORS: true
-        }).then(canvas => {
-            const image = canvas.toDataURL("image/png");
-            const link = document.createElement('a');
-            const name = document.getElementById('name').value || "زبون";
-            link.download = `فاتورة_Dathiun_${name}.png`;
-            link.href = image;
-            link.click();
-        });
+    if (inv.items.length) {
+        const rows = inv.items.map(x => ({
+            order_id:orderResult.data.id, product_name:x.name, price:x.price
+        }));
+        const result = await db.from('order_items').insert(rows);
+        if (result.error) alert("تم حفظ الفاتورة، لكن تفاصيل المواد فشلت:\n" + result.error.message);
+    }
+}
+
+async function copyTextInvoice() {
+    if (!generatedTextInvoice) return;
+    await navigator.clipboard.writeText(generatedTextInvoice);
+    alert("تم نسخ النص بنجاح! 📋");
+}
+
+function printInvoice() {
+    const element = document.getElementById('invoice-target');
+    const win = window.open('', '_blank', 'width=800,height=900');
+    if (!win) return alert("المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة لهذا الملف.");
+
+    win.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+    <title>فاتورة ${escapeHtml(currentInvoice?.invoice_number || '')}</title>
+    <style>
+    *{box-sizing:border-box}body{font-family:Segoe UI,Tahoma,Arial,sans-serif;background:white;margin:0;padding:20px;color:#111}
+    .invoice-card{max-width:700px;margin:auto;border:2px solid #111;border-radius:12px;padding:22px}
+    .card-header{text-align:center;border-bottom:2px dashed #888;padding-bottom:12px;margin-bottom:12px}
+    .card-header h1{margin:0;font-size:26px}.card-header p{color:#555}.card-info{line-height:1.8}
+    .card-info strong{color:#111}.card-table{width:100%;border-collapse:collapse;margin:15px 0}
+    .card-table th,.card-table td{padding:9px;border-bottom:1px solid #ddd}.card-table th{border-bottom:2px solid #111}
+    .card-totals{border-top:2px dashed #888;padding-top:12px}.total-row{display:flex;justify-content:space-between;margin:7px 0}
+    .grand-total{font-size:20px;font-weight:bold;border-top:1px solid #111;padding-top:8px}.card-footer{text-align:center;margin-top:20px;font-weight:bold}
+    @media print{body{padding:0}.invoice-card{border:1px solid #111}}
+    </style></head><body>${element.outerHTML}
+    <script>window.onload=function(){window.print();setTimeout(function(){window.close()},500)}<\/script>
+    </body></html>`);
+    win.document.close();
+}
+
+function downloadInvoiceImage() {
+    html2canvas(document.getElementById('invoice-target'), {
+        backgroundColor:'#0d0d0d',scale:2,logging:false,useCORS:true
+    }).then(canvas => {
+        const link=document.createElement('a');
+        link.download=`فاتورة_Dathiun_${document.getElementById('name').value || "زبون"}_${currentInvoice?.invoice_number || ""}.png`;
+        link.href=canvas.toDataURL("image/png"); link.click();
+    });
+}
+
+function sendToWhatsApp() {
+    if (!whatsappTextInvoice) return alert("يرجى توليد الفاتورة أولاً!");
+    let phone=rawPhoneNumber.replace(/\s+/g,'').replace(/-/g,'').replace(/\+/g,'');
+    if (phone.startsWith('07')) phone='964'+phone.substring(1);
+    else if (phone.startsWith('7')) phone='964'+phone;
+    if (!phone || phone.length<10) return alert("يرجى إدخال رقم هاتف صحيح ومكتمل للزبون!");
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(whatsappTextInvoice)}`,'_blank');
+}
+
+async function downloadBackup() {
+    const tables=['products','customers','orders','order_items','settings'];
+    const backup={app:'Dathiun Fatora',version:2,exported_at:new Date().toISOString(),data:{}};
+
+    for (const table of tables) {
+        const {data,error}=await db.from(table).select('*');
+        if (error) return alert(`تعذر تحميل جدول ${table}:\n${error.message}`);
+        backup.data[table]=data || [];
     }
 
-    function sendToWhatsApp() {
-        if(!whatsappTextInvoice) {
-            alert("يرجى توليد الفاتورة أولاً!");
-            return;
-        }
-        
-        let cleanPhone = rawPhoneNumber.replace(/\s+/g, '').replace(/-/g, '').replace(/\+/g, '');
-        
-        if (cleanPhone.startsWith('07')) {
-            cleanPhone = '964' + cleanPhone.substring(1);
-        } else if (cleanPhone.startsWith('7')) {
-            cleanPhone = '964' + cleanPhone;
-        }
-        
-        if(!cleanPhone || cleanPhone === "---" || cleanPhone.length < 10) {
-            alert("يرجى إدخال رقم هاتف صحيح ومكتمل للزبون لفتح محادثة واتساب!");
-            return;
-        }
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob), link=document.createElement('a');
+    link.href=url; link.download=`Dathiun_Backup_${todayString()}.json`; link.click();
+    URL.revokeObjectURL(url);
+}
 
-        // إرسال النص المطور المضاف إليه حقل التثبيت والمصحح إملائياً
-        const encodedText = encodeURIComponent(whatsappTextInvoice);
-        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
-        
-        window.open(whatsappUrl, '_blank');
-    }
-
-    addItem();
+addItem();
+restoreSession();
 </script>
 </body>
 </html>
