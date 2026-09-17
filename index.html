@@ -549,8 +549,8 @@ function renderInvoiceHistory() {
                 <span class="muted">${escapeHtml(o.invoice_date || '---')} — <strong>${money(o.total)}</strong></span>
             </div>
             <div class="history-actions">
-                <button type="button" onclick="openSavedInvoice(${JSON.stringify(o.id)})">فتح</button>
-                <button type="button" class="danger-btn" onclick="deleteSavedInvoice(${JSON.stringify(o.id)}, ${JSON.stringify(o.invoice_number || '')})">حذف</button>
+                <button type="button" onclick="openSavedInvoice('${o.id}')">فتح</button>
+                <button type="button" class="danger-btn" onclick="deleteSavedInvoice('${o.id}', '${String(o.invoice_number || '').replace(/\'/g, "\\'")}')">حذف</button>
             </div>
         </div>`).join('');
 }
@@ -564,8 +564,8 @@ async function openSavedInvoice(id) {
     const inv = {
         id:order.id, invoice_number:order.invoice_number, invoice_date:order.invoice_date,
         customer_name:order.customer_name, customer_phone:order.customer_phone || '',
-        customer_address:order.customer_address || '---', duration:order.duration,
-        items:(items || []).map(x => ({name:x.product_name, price:Number(x.price)||0})),
+        customer_address:order.customer_address || '---', duration:order.work_duration,
+        items:(items || []).map(x => ({name:x.product_name, price:Number(x.unit_price)||0, quantity:Number(x.quantity)||1})),
         subtotal:Number(order.subtotal)||0, discount:Number(order.discount)||0,
         shipping:Number(order.shipping)||0, total:Number(order.total)||0,
         discount_type:'amount'
