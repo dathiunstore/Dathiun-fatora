@@ -60,6 +60,10 @@
             background: #222; color: var(--fire-yellow); 
             font-size: 0.85rem; border: 1px solid var(--fire-orange); 
         }
+        .qty-select { flex: 0 0 82px; min-width:82px; text-align:center; }
+        .product-box .remove-item { width:42px; flex:0 0 42px; background:#ff4444; color:#fff; padding:0; margin:0; }
+        .product-box input { min-width:0; }
+        @media (max-width:600px){ .product-box{align-items:center; flex-wrap:wrap;} .product-box .p-name{flex:1 1 42%;} .product-box .p-price{flex:1 1 28%;} .product-box .qty-select{flex:0 0 76px;} }
 
         /* --- ستايل بطاقة كرت الفاتورة الناري --- */
         #invoice-card-wrapper {
@@ -107,6 +111,116 @@
         @media (max-width:600px) { .history-row { grid-template-columns:1fr; } .history-actions { justify-content:stretch; } .history-actions button { flex:1; } }
 
     </style>
+<style>
+/* Professional one-page invoice printing */
+@page { size: A4 portrait; margin: 10mm; }
+@media print {
+    html, body {
+        background: #fff !important;
+        color: #111 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-height: 0 !important;
+    }
+    body.printing-invoice > * { display: none !important; }
+    body.printing-invoice #invoice-card-wrapper {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        background: #fff !important;
+    }
+    body.printing-invoice #invoice-target {
+        display: block !important;
+        width: 100% !important;
+        max-width: 190mm !important;
+        margin: 0 auto !important;
+        padding: 8mm !important;
+        background: #fff !important;
+        color: #111 !important;
+        border: 1px solid #222 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+    body.printing-invoice #invoice-target .card-header {
+        text-align: center !important;
+        border-bottom: 1px solid #222 !important;
+        padding-bottom: 5mm !important;
+        margin-bottom: 5mm !important;
+    }
+    body.printing-invoice #invoice-target .card-header h1 {
+        color: #111 !important;
+        text-shadow: none !important;
+        font-size: 26pt !important;
+        margin: 0 !important;
+        line-height: 1.15 !important;
+        font-weight: 800 !important;
+        font-family: Arial, Tahoma, sans-serif !important;
+        font-size: 0 !important;
+    }
+    body.printing-invoice #invoice-target .card-header h1::after {
+        content: 'DATHIUN STORE';
+        font-size: 26pt;
+    }
+    body.printing-invoice #invoice-target .card-header p {
+        color: #333 !important;
+        font-size: 12pt !important;
+        margin: 2mm 0 0 !important;
+        font-family: Arial, Tahoma, sans-serif !important;
+        font-size: 0 !important;
+    }
+    body.printing-invoice #invoice-target .card-header p::after {
+        content: 'فاتورة طلب';
+        font-size: 12pt;
+    }
+    body.printing-invoice #invoice-target .card-info {
+        color: #111 !important;
+        line-height: 1.65 !important;
+        font-size: 10.5pt !important;
+        margin-bottom: 4mm !important;
+    }
+    body.printing-invoice #invoice-target .card-info strong { color: #111 !important; }
+    body.printing-invoice #invoice-target .card-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 4mm 0 !important;
+        color: #111 !important;
+        font-size: 10.5pt !important;
+    }
+    body.printing-invoice #invoice-target .card-table th,
+    body.printing-invoice #invoice-target .card-table td {
+        color: #111 !important;
+        border: 1px solid #444 !important;
+        padding: 2.5mm !important;
+    }
+    body.printing-invoice #invoice-target .card-table th {
+        background: #f2f2f2 !important;
+        font-weight: 700 !important;
+    }
+    body.printing-invoice #invoice-target .card-totals {
+        border-top: 1px solid #222 !important;
+        padding-top: 3mm !important;
+        color: #111 !important;
+        font-size: 10.5pt !important;
+    }
+    body.printing-invoice #invoice-target .total-row {
+        color: #111 !important;
+        margin: 2mm 0 !important;
+    }
+    body.printing-invoice #invoice-target .grand-total {
+        font-size: 15pt !important;
+        font-weight: 800 !important;
+        border-top: 1px solid #222 !important;
+        padding-top: 3mm !important;
+    }
+    body.printing-invoice #invoice-target .card-footer { display: none !important; }
+    body.printing-invoice #invoice-card-wrapper .action-btns { display: none !important; }
+}
+</style>
 </head>
 <body>
 
@@ -196,7 +310,9 @@
                     <thead>
                         <tr>
                             <th>الـمـادة</th>
-                            <th style="text-align: left;">السعر</th>
+                            <th style="text-align:center;">العدد</th>
+                            <th style="text-align:left;">السعر</th>
+                            <th style="text-align:left;">الإجمالي</th>
                         </tr>
                     </thead>
                     <tbody id="card-items-body">
@@ -370,27 +486,42 @@ async function deleteProduct(id, name) {
     alert('تم حذف المنتج بنجاح 🗑️');
 }
 
-function addItem() {
-    const container = document.getElementById('items-list');
+function quantityOptions(selected=1) {
+    let html='';
+    for(let i=1;i<=10;i++) html += `<option value="${i}" ${i===Number(selected)?'selected':''}>${i}</option>`;
+    return html;
+}
+
+function createProductRow(name='', price='', quantity=1) {
     const div = document.createElement('div');
     div.className = 'product-box';
     div.innerHTML = `
-        <input type="text" class="p-name" placeholder="المادة" style="flex: 2;">
-        <input type="text" class="p-price" placeholder="السعر" style="flex: 1;">
-        <button onclick="this.parentElement.remove()" style="width:35px;background:#ff4444;color:white;padding:0;margin:0;">X</button>`;
-    container.appendChild(div);
+        <input type="text" class="p-name" placeholder="المادة" style="flex:2;" value="${escapeHtml(name)}">
+        <input type="text" class="p-price" placeholder="السعر" style="flex:1;" value="${price}">
+        <select class="p-qty qty-select" aria-label="العدد">${quantityOptions(quantity)}</select>
+        <button type="button" class="remove-item" onclick="this.parentElement.remove()">X</button>`;
+    div.querySelector('.p-qty').value = String(Math.min(10,Math.max(1,Number(quantity)||1)));
+    return div;
+}
+
+function addItem() {
+    document.getElementById('items-list').appendChild(createProductRow());
 }
 
 function addSpecificItem(name, price) {
-    const div = document.createElement('div');
-    div.className = 'product-box';
-    div.innerHTML = `
-        <input type="text" class="p-name" style="flex:2;">
-        <input type="text" class="p-price" style="flex:1;">
-        <button onclick="this.parentElement.remove()" style="width:35px;background:#ff4444;color:white;padding:0;margin:0;">X</button>`;
-    div.querySelector('.p-name').value = name;
-    div.querySelector('.p-price').value = price;
-    document.getElementById('items-list').appendChild(div);
+    const rows=[...document.querySelectorAll('.product-box')];
+    const existing=rows.find(box =>
+        box.querySelector('.p-name')?.value.trim() === String(name).trim() &&
+        Number(fixNumbers(box.querySelector('.p-price')?.value)) === Number(price)
+    );
+    if(existing){
+        const q=existing.querySelector('.p-qty');
+        const next=Math.min(10,(Number(q.value)||1)+1);
+        q.value=String(next);
+        existing.scrollIntoView({behavior:'smooth',block:'center'});
+        return;
+    }
+    document.getElementById('items-list').appendChild(createProductRow(name,price,1));
 }
 
 function setShipping(val) {
@@ -421,18 +552,27 @@ async function generateInvoice() {
     const tableBody = document.getElementById('card-items-body');
     tableBody.innerHTML = "";
 
+    const merged = new Map();
     document.querySelectorAll('.product-box').forEach(box => {
         const pN = box.querySelector('.p-name').value.trim();
         const pP = Number(fixNumbers(box.querySelector('.p-price').value)) || 0;
+        const qty = Math.min(10, Math.max(1, Number(box.querySelector('.p-qty')?.value) || 1));
         if (pN) {
-            items.push({name:pN, price:pP});
-            itemsText += `• ${count} | ${pN} [${money(pP)}]\n`;
-            subtotal += pP; count++;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>• ${escapeHtml(pN)}</td><td style="text-align:left;">${money(pP)}</td>`;
-            tableBody.appendChild(tr);
+            const key = `${pN.toLowerCase()}|${pP}`;
+            if(merged.has(key)) merged.get(key).quantity = Math.min(10, merged.get(key).quantity + qty);
+            else merged.set(key, {name:pN, price:pP, quantity:qty});
         }
     });
+
+    for (const item of merged.values()) {
+        item.line_total = item.price * item.quantity;
+        items.push(item);
+        itemsText += `• ${count} | ${item.name} × ${item.quantity} [${money(item.price)}] = ${money(item.line_total)}\n`;
+        subtotal += item.line_total; count++;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>• ${escapeHtml(item.name)}</td><td style="text-align:center;">${item.quantity}</td><td style="text-align:left;">${money(item.price)}</td><td style="text-align:left;">${money(item.line_total)}</td>`;
+        tableBody.appendChild(tr);
+    }
 
     const discAmt = discType === 'percent' ? subtotal * (discInput/100) : discInput;
     const total = subtotal - discAmt + ship;
@@ -520,7 +660,7 @@ async function saveInvoice(inv) {
 
     if (inv.items.length) {
         const rows = inv.items.map(x => ({
-            order_id:orderResult.data.id, product_id:null, product_name:x.name, unit_price:x.price, quantity:1, line_total:x.price
+            order_id:orderResult.data.id, product_id:null, product_name:x.name, unit_price:x.price, quantity:x.quantity || 1, line_total:x.line_total || (x.price * (x.quantity || 1))
         }));
         const result = await db.from('order_items').insert(rows);
         if (result.error) alert("تم حفظ الفاتورة، لكن تفاصيل المواد فشلت:\n" + result.error.message);
@@ -583,7 +723,7 @@ async function openSavedInvoice(id) {
         id:order.id, invoice_number:order.invoice_number, invoice_date:order.invoice_date,
         customer_name:order.customer_name, customer_phone:order.customer_phone || '',
         customer_address:order.customer_address || '---', duration:order.work_duration,
-        items:(items || []).map(x => ({name:x.product_name, price:Number(x.unit_price)||0, quantity:Number(x.quantity)||1})),
+        items:(items || []).map(x => ({name:x.product_name, price:Number(x.unit_price)||0, quantity:Math.min(10,Math.max(1,Number(x.quantity)||1)), line_total:Number(x.line_total)||((Number(x.unit_price)||0)*(Number(x.quantity)||1))})),
         subtotal:Number(order.subtotal)||0, discount:Number(order.discount)||0,
         shipping:Number(order.shipping)||0, total:Number(order.total)||0,
         discount_type:'amount'
@@ -598,7 +738,7 @@ async function openSavedInvoice(id) {
     const body=document.getElementById('card-items-body'); body.innerHTML='';
     inv.items.forEach(x=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>• ${escapeHtml(x.name)}</td><td style="text-align:left;">${money(x.price)}</td>`;
+        tr.innerHTML=`<td>• ${escapeHtml(x.name)}</td><td style="text-align:center;">${x.quantity}</td><td style="text-align:left;">${money(x.price)}</td><td style="text-align:left;">${money(x.line_total)}</td>`;
         body.appendChild(tr);
     });
     document.getElementById('lbl-name').innerText=inv.customer_name || '---';
@@ -623,7 +763,7 @@ async function openSavedInvoice(id) {
 
 function buildTextInvoice(inv) {
     let itemsText='', count=1;
-    for (const x of inv.items) { itemsText += `• ${count} | ${x.name} [${money(x.price)}]\n`; count++; }
+    for (const x of inv.items) { const q=Number(x.quantity)||1; const line=x.line_total ?? (x.price*q); itemsText += `• ${count} | ${x.name} × ${q} [${money(x.price)}] = ${money(line)}\n`; count++; }
     const durationLine=inv.duration ? `• مدة العمل: ${inv.duration} أيام كحد أقصى ويكون طلبك جاهز\n` : '';
     return `📦 فاتورة الطلب - Dathiun Store\nمرحباً ${inv.customer_name || '---'} ✨\nتم تجهيز فاتورتك بنجاح ✅\n\n🧾 رقم الفاتورة: ${inv.invoice_number}\n📅 التاريخ: ${inv.invoice_date}\n\n📝 تفاصيل الطلب:\n${itemsText}\n--------------------------\n💰 المجموع الفرعي: ${money(inv.subtotal)}\n📉 الخصم: -${money(inv.discount)}\n🚚 التوصيل: ${money(inv.shipping)}\n--------------------------\n💵 المجموع الكلي: ${money(inv.total)}\n\n📍 معلومات الاستلام:\n• العنوان: ${inv.customer_address || '---'}\n• الهاتف: ${inv.customer_phone || '---'}\n${durationLine}شكراً لدعمك لـ Dathiun Store ☣️\nنتمنى أن تنال أعمالنا إعجابكم 🧡`;
 }
@@ -657,26 +797,21 @@ async function copyTextInvoice() {
 }
 
 function printInvoice() {
-    const element = document.getElementById('invoice-target');
-    const win = window.open('', '_blank', 'width=800,height=900');
-    if (!win) return alert("المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة لهذا الملف.");
+    const target = document.getElementById('invoice-target');
+    if (!target || !currentInvoice) return alert('يرجى توليد الفاتورة أولاً!');
 
-    win.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
-    <title>فاتورة ${escapeHtml(currentInvoice?.invoice_number || '')}</title>
-    <style>
-    *{box-sizing:border-box}body{font-family:Segoe UI,Tahoma,Arial,sans-serif;background:white;margin:0;padding:20px;color:#111}
-    .invoice-card{max-width:700px;margin:auto;border:2px solid #111;border-radius:12px;padding:22px}
-    .card-header{text-align:center;border-bottom:2px dashed #888;padding-bottom:12px;margin-bottom:12px}
-    .card-header h1{margin:0;font-size:26px}.card-header p{color:#555}.card-info{line-height:1.8}
-    .card-info strong{color:#111}.card-table{width:100%;border-collapse:collapse;margin:15px 0}
-    .card-table th,.card-table td{padding:9px;border-bottom:1px solid #ddd}.card-table th{border-bottom:2px solid #111}
-    .card-totals{border-top:2px dashed #888;padding-top:12px}.total-row{display:flex;justify-content:space-between;margin:7px 0}
-    .grand-total{font-size:20px;font-weight:bold;border-top:1px solid #111;padding-top:8px}.card-footer{text-align:center;margin-top:20px;font-weight:bold}
-    @media print{body{padding:0}.invoice-card{border:1px solid #111}}
-    </style></head><body>${element.outerHTML}
-    <script>window.onload=function(){window.print();setTimeout(function(){window.close()},500)}<\/script>
-    </body></html>`);
-    win.document.close();
+    // Print the invoice in the current page so the browser does not open an about:blank tab.
+    document.body.classList.add('printing-invoice');
+    const oldTitle = document.title;
+    document.title = `فاتورة ${currentInvoice.invoice_number || ''}`;
+
+    const cleanup = () => {
+        document.body.classList.remove('printing-invoice');
+        document.title = oldTitle;
+        window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
 }
 
 function downloadInvoiceImage() {
