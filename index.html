@@ -800,18 +800,55 @@ function printInvoice() {
     const target = document.getElementById('invoice-target');
     if (!target || !currentInvoice) return alert('يرجى توليد الفاتورة أولاً!');
 
-    // Print the invoice in the current page so the browser does not open an about:blank tab.
-    document.body.classList.add('printing-invoice');
-    const oldTitle = document.title;
-    document.title = `فاتورة ${currentInvoice.invoice_number || ''}`;
+    // Use a dedicated print iframe. This avoids blank print previews and about:blank headers.
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.width = '1px';
+    iframe.style.height = '1px';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
 
-    const cleanup = () => {
-        document.body.classList.remove('printing-invoice');
-        document.title = oldTitle;
-        window.removeEventListener('afterprint', cleanup);
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    const printCss = `
+      *{box-sizing:border-box}
+      @page{size:A4;margin:10mm}
+      html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Tahoma,sans-serif}
+      body{direction:rtl;padding:0}
+      .invoice-card{width:100%;max-width:190mm;margin:0 auto;padding:8mm;background:#fff;color:#111;border:1px solid #222;border-radius:0;box-shadow:none}
+      .card-header{text-align:center;border-bottom:1px solid #222;padding-bottom:5mm;margin-bottom:5mm}
+      .card-header h1{font-size:0!important;margin:0!important;color:#111!important;text-shadow:none!important}
+      .card-header h1::after{content:'DATHIUN STORE';font-size:26pt;font-weight:800}
+      .card-header p{font-size:0!important;margin:2mm 0 0!important;color:#333!important}
+      .card-header p::after{content:'فاتورة طلب';font-size:12pt}
+      .card-info{line-height:1.8;color:#111!important}
+      .card-info strong{color:#111!important}
+      .card-table{width:100%;border-collapse:collapse;margin:5mm 0}
+      .card-table th,.card-table td{padding:3mm 2mm;border-bottom:1px solid #ccc;color:#111!important;font-size:11pt}
+      .card-table th{border-bottom:2px solid #111}
+      .card-totals{border-top:1px solid #222;padding-top:4mm;color:#111!important}
+      .total-row{display:flex;justify-content:space-between;margin:2mm 0;color:#111!important}
+      .grand-total{font-size:16pt;font-weight:800;border-top:1px solid #111;padding-top:3mm;color:#111!important}
+      .card-footer,.action-btns{display:none!important}
+      #card-duration-box{color:#111!important}
+      @media print{body{padding:0}.invoice-card{page-break-inside:avoid;break-inside:avoid}}
+    `;
+
+    doc.open();
+    doc.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>Dathiun Store</title><style>${printCss}</style></head><body>${target.outerHTML}</body></html>`);
+    doc.close();
+
+    const doPrint = () => {
+        try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        } finally {
+            setTimeout(() => iframe.remove(), 1200);
+        }
     };
-    window.addEventListener('afterprint', cleanup);
-    window.print();
+
+    setTimeout(doPrint, 250);
 }
 
 function downloadInvoiceImage() {
