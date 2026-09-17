@@ -97,6 +97,15 @@
             font-size: 1.1rem;
         }
         .label-text { font-size: 0.9rem; color: var(--fire-orange); margin-top: 10px; display: block; font-weight: bold; }
+        .history-panel { display:none; background:#161616; border:1px solid #333; border-radius:12px; padding:12px; margin-bottom:15px; }
+        .history-row { background:#222; border-radius:9px; padding:10px; margin:8px 0; display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; }
+        .history-meta { line-height:1.7; font-size:.9rem; }
+        .history-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+        .history-actions button { width:auto; margin:0; padding:7px 10px; font-size:.8rem; }
+        .danger-btn { background:#8b1e1e !important; color:#fff !important; }
+        .muted { color:#999; font-size:.85rem; }
+        @media (max-width:600px) { .history-row { grid-template-columns:1fr; } .history-actions { justify-content:stretch; } .history-actions button { flex:1; } }
+
     </style>
 </head>
 <body>
@@ -112,9 +121,16 @@
     </div>
 
     <div id="main-content" style="display: none;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
             <button type="button" class="item-btn" onclick="toggleProductManager()">📦 إدارة المنتجات</button>
+            <button type="button" class="item-btn" onclick="toggleInvoiceHistory()">🧾 الفواتير السابقة</button>
             <button type="button" class="item-btn" onclick="downloadBackup()">💾 نسخة احتياطية</button>
+        </div>
+
+        <div id="invoice-history" class="history-panel">
+            <h3 style="margin-top:0;">🧾 الفواتير المحفوظة</h3>
+            <input type="text" id="invoice-search" placeholder="بحث برقم الفاتورة أو الهاتف أو اسم الزبون" oninput="renderInvoiceHistory()">
+            <div id="invoice-history-list"><p class="muted">جاري التحميل...</p></div>
         </div>
 
         <div id="product-manager" style="display:none;background:#161616;border:1px solid #333;border-radius:12px;padding:12px;margin-bottom:15px;">
@@ -203,6 +219,7 @@
                 <button onclick="copyTextInvoice()" style="background: #222; color: #fff; border: 1px solid var(--fire-orange);">نسخ النص 📋</button>
                 <button onclick="printInvoice()" style="background: #222; color: #fff; border: 1px solid var(--fire-orange);">🖨️ طباعة</button>
                 <button onclick="downloadInvoiceImage()" style="background: linear-gradient(45deg, #ff6a00, #ffcc00); color: #000;">تحميل كصورة 🖼️</button>
+                <button onclick="deleteCurrentInvoice()" class="danger-btn">🗑️ حذف الفاتورة</button>
                 <button onclick="sendToWhatsApp()" class="whatsapp-btn">إرسال الفاتورة عبر الواتساب 💬</button>
             </div>
         </div>
@@ -480,6 +497,9 @@ async function saveInvoice(inv) {
         return;
     }
 
+    inv.id = orderResult.data.id;
+    currentInvoice.id = orderResult.data.id;
+
     if (inv.items.length) {
         const rows = inv.items.map(x => ({
             order_id:orderResult.data.id, product_name:x.name, price:x.price
@@ -487,6 +507,129 @@ async function saveInvoice(inv) {
         const result = await db.from('order_items').insert(rows);
         if (result.error) alert("تم حفظ الفاتورة، لكن تفاصيل المواد فشلت:\n" + result.error.message);
     }
+}
+
+function toggleInvoiceHistory() {
+    const panel = document.getElementById('invoice-history');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel.style.display === 'block') loadInvoiceHistory();
+}
+
+async function loadInvoiceHistory() {
+    const list = document.getElementById('invoice-history-list');
+    list.innerHTML = '<p class="muted">جاري تحميل الفواتير...</p>';
+    const {data, error} = await db.from('orders')
+        .select('*')
+        .order('invoice_date', {ascending:false})
+        .order('created_at', {ascending:false});
+    if (error) {
+        list.innerHTML = `<p style="color:#ff6666">تعذر تحميل الفواتير: ${escapeHtml(error.message)}</p>`;
+        return;
+    }
+    window.invoiceHistory = data || [];
+    renderInvoiceHistory();
+}
+
+function renderInvoiceHistory() {
+    const list = document.getElementById('invoice-history-list');
+    const q = (document.getElementById('invoice-search')?.value || '').trim().toLowerCase();
+    const rows = (window.invoiceHistory || []).filter(o => {
+        const text = `${o.invoice_number || ''} ${o.customer_name || ''} ${o.customer_phone || ''}`.toLowerCase();
+        return !q || text.includes(q);
+    });
+    if (!rows.length) {
+        list.innerHTML = '<p class="muted">ماكو فواتير مطابقة.</p>';
+        return;
+    }
+    list.innerHTML = rows.map(o => `
+        <div class="history-row">
+            <div class="history-meta">
+                <strong>${escapeHtml(o.invoice_number || 'بدون رقم')}</strong><br>
+                ${escapeHtml(o.customer_name || '---')} — ${escapeHtml(o.customer_phone || '---')}<br>
+                <span class="muted">${escapeHtml(o.invoice_date || '---')} — <strong>${money(o.total)}</strong></span>
+            </div>
+            <div class="history-actions">
+                <button type="button" onclick="openSavedInvoice(${JSON.stringify(o.id)})">فتح</button>
+                <button type="button" class="danger-btn" onclick="deleteSavedInvoice(${JSON.stringify(o.id)}, ${JSON.stringify(o.invoice_number || '')})">حذف</button>
+            </div>
+        </div>`).join('');
+}
+
+async function openSavedInvoice(id) {
+    const order = (window.invoiceHistory || []).find(x => String(x.id) === String(id));
+    if (!order) return;
+    const {data:items, error} = await db.from('order_items').select('*').eq('order_id', id).order('id', {ascending:true});
+    if (error) return alert('تعذر تحميل تفاصيل الفاتورة:\n' + error.message);
+
+    const inv = {
+        id:order.id, invoice_number:order.invoice_number, invoice_date:order.invoice_date,
+        customer_name:order.customer_name, customer_phone:order.customer_phone || '',
+        customer_address:order.customer_address || '---', duration:order.duration,
+        items:(items || []).map(x => ({name:x.product_name, price:Number(x.price)||0})),
+        subtotal:Number(order.subtotal)||0, discount:Number(order.discount)||0,
+        shipping:Number(order.shipping)||0, total:Number(order.total)||0,
+        discount_type:'amount'
+    };
+    currentInvoice = inv;
+    rawPhoneNumber = inv.customer_phone;
+    document.getElementById('name').value = inv.customer_name || '';
+    document.getElementById('phone').value = inv.customer_phone || '';
+    document.getElementById('address').value = inv.customer_address || '';
+    document.getElementById('duration').value = inv.duration || '';
+
+    const body=document.getElementById('card-items-body'); body.innerHTML='';
+    inv.items.forEach(x=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>• ${escapeHtml(x.name)}</td><td style="text-align:left;">${money(x.price)}</td>`;
+        body.appendChild(tr);
+    });
+    document.getElementById('lbl-name').innerText=inv.customer_name || '---';
+    document.getElementById('lbl-phone').innerText=inv.customer_phone || '---';
+    document.getElementById('lbl-address').innerText=inv.customer_address || '---';
+    document.getElementById('lbl-invoice-number').innerText=inv.invoice_number || '---';
+    document.getElementById('lbl-invoice-date').innerText=inv.invoice_date || '---';
+    document.getElementById('lbl-subtotal').innerText=money(inv.subtotal);
+    document.getElementById('lbl-discount').innerText=inv.discount ? `-${money(inv.discount)}` : money(0);
+    document.getElementById('lbl-shipping').innerText=money(inv.shipping);
+    document.getElementById('lbl-total').innerText=money(inv.total);
+    if (inv.duration) {
+        document.getElementById('lbl-duration').innerText=`${inv.duration} أيام كحد أقصى ويكون طلبك جاهز`;
+        document.getElementById('card-duration-box').style.display='block';
+    } else document.getElementById('card-duration-box').style.display='none';
+
+    generatedTextInvoice = buildTextInvoice(inv);
+    whatsappTextInvoice = generatedTextInvoice + `\n\n━━━━━━━━━━━━━━━━━━━\n⚠️ *ملاحظة مهمة للتثبيت:* ⚠️\n*رجاءً، للتثبيت قم بالرد على هذه الرسالة.*`;
+    document.getElementById('invoice-card-wrapper').style.display='block';
+    window.scrollTo({top:document.getElementById('invoice-card-wrapper').offsetTop,behavior:'smooth'});
+}
+
+function buildTextInvoice(inv) {
+    let itemsText='', count=1;
+    for (const x of inv.items) { itemsText += `• ${count} | ${x.name} [${money(x.price)}]\n`; count++; }
+    const durationLine=inv.duration ? `• مدة العمل: ${inv.duration} أيام كحد أقصى ويكون طلبك جاهز\n` : '';
+    return `📦 فاتورة الطلب - Dathiun Store\nمرحباً ${inv.customer_name || '---'} ✨\nتم تجهيز فاتورتك بنجاح ✅\n\n🧾 رقم الفاتورة: ${inv.invoice_number}\n📅 التاريخ: ${inv.invoice_date}\n\n📝 تفاصيل الطلب:\n${itemsText}\n--------------------------\n💰 المجموع الفرعي: ${money(inv.subtotal)}\n📉 الخصم: -${money(inv.discount)}\n🚚 التوصيل: ${money(inv.shipping)}\n--------------------------\n💵 المجموع الكلي: ${money(inv.total)}\n\n📍 معلومات الاستلام:\n• العنوان: ${inv.customer_address || '---'}\n• الهاتف: ${inv.customer_phone || '---'}\n${durationLine}شكراً لدعمك لـ Dathiun Store ☣️\nنتمنى أن تنال أعمالنا إعجابكم 🧡`;
+}
+
+async function deleteSavedInvoice(id, invoiceNumber) {
+    const ok = confirm(`متأكد تريد حذف الفاتورة ${invoiceNumber || ''}؟\nسيتم حذف الفاتورة وتفاصيل موادها من قاعدة البيانات.`);
+    if (!ok) return;
+
+    const itemsResult = await db.from('order_items').delete().eq('order_id', id);
+    if (itemsResult.error) return alert('تعذر حذف تفاصيل الفاتورة:\n' + itemsResult.error.message);
+    const orderResult = await db.from('orders').delete().eq('id', id);
+    if (orderResult.error) return alert('تعذر حذف الفاتورة:\n' + orderResult.error.message);
+
+    if (currentInvoice && String(currentInvoice.id) === String(id)) {
+        currentInvoice = null;
+        document.getElementById('invoice-card-wrapper').style.display='none';
+    }
+    await loadInvoiceHistory();
+    alert('تم حذف الفاتورة بنجاح.');
+}
+
+async function deleteCurrentInvoice() {
+    if (!currentInvoice?.id) return alert('هذه الفاتورة غير مرتبطة بسجل محفوظ.');
+    await deleteSavedInvoice(currentInvoice.id, currentInvoice.invoice_number);
 }
 
 async function copyTextInvoice() {
