@@ -154,11 +154,9 @@
 
         <span class="label-text">إضافة سريعة:</span>
         <div class="quick-btns">
-            <button class="item-btn" onclick="addSpecificItem('مسدس راكويم', 55000)">🔫 مسدس راكويم</button>
-            <button class="item-btn" onclick="addSpecificItem('فاس ليون', 60000)">🪓 فاس ليون</button>
-            <button class="item-btn" onclick="addSpecificItem('ميداليات ٣', 10000)">🏅 ميداليات ٣</button>
             <button class="item-btn" onclick="addItem()">+ مادة مخصصة</button>
         </div>
+        <div id="saved-quick-products" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;"></div>
 
         <div id="items-list"></div>
 
@@ -348,8 +346,28 @@ function renderSavedProducts() {
         <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;background:#222;padding:8px;border-radius:8px;margin:7px 0;">
             <span>${escapeHtml(p.name)}</span>
             <strong>${money(p.price)}</strong>
-            <button type="button" style="width:auto;margin:0;padding:7px 10px;" onclick='addSpecificItem(${JSON.stringify(p.name)},${Number(p.price)})'>إضافة</button>
+            <div style="display:flex;gap:6px;">
+                <button type="button" style="width:auto;margin:0;padding:7px 10px;" onclick='addSpecificItem(${JSON.stringify(p.name)},${Number(p.price)})'>إضافة</button>
+                <button type="button" class="danger-btn" style="width:auto;margin:0;padding:7px 10px;" onclick='deleteProduct(${JSON.stringify(p.id)},${JSON.stringify(p.name)})'>حذف</button>
+            </div>
         </div>`).join('');
+
+    const quick = document.getElementById('saved-quick-products');
+    if (quick) {
+        quick.innerHTML = savedProducts.map(p => `
+            <button type="button" class="item-btn" onclick='addSpecificItem(${JSON.stringify(p.name)},${Number(p.price)})'>📦 ${escapeHtml(p.name)}<br><small>${money(p.price)}</small></button>
+        `).join('');
+    }
+}
+
+async function deleteProduct(id, name) {
+    if (!id) return;
+    const ok = confirm(`متأكد تريد حذف المنتج «${name || ''}»؟\nسيتم حذفه من قائمة المنتجات المحفوظة.`);
+    if (!ok) return;
+    const {error} = await db.from('products').delete().eq('id', id);
+    if (error) return alert('ما قدرت أحذف المنتج:\n' + error.message);
+    await loadProducts();
+    alert('تم حذف المنتج بنجاح 🗑️');
 }
 
 function addItem() {
